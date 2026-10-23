@@ -14,6 +14,9 @@ import {
 } from "@mui/material";
 import LayersIcon from "@mui/icons-material/Layers";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import HourglassTopIcon from "@mui/icons-material/HourglassTop";
+import BlockIcon from "@mui/icons-material/Block";
 import { useNavigate } from "react-router-dom";
 import { useGetMyOrganisationsQuery } from "../../redux/services/requisition/requisition";
 import SearchFilter from "../../components/searchFilter";
@@ -38,6 +41,110 @@ const C = {
   textSecondary: "#5C5C70",
   textTertiary: "#9696A6",
 };
+
+// ─────────────────────────────────────────────────────────────
+// Subscription helpers (payg is shown as "Premium")
+// ─────────────────────────────────────────────────────────────
+const fmtDate = (v) =>
+  v
+    ? new Date(v).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
+const getPlanMeta = (sub) => {
+  if (!sub) {
+    return {
+      key: "none",
+      label: "No plan",
+      color: C.textTertiary,
+      bg: "#F3F4F6",
+      Icon: BlockIcon,
+      detail: "No subscription found",
+    };
+  }
+  const type = String(sub.subscription_type || "").toLowerCase();
+  const cancelled = !!sub.cancelled_at || sub.status === "cancelled";
+  const inactive = sub.is_access_active === false;
+
+  if (type === "trial") {
+    const daysLeft = sub.trial_ends_at
+      ? Math.ceil((new Date(sub.trial_ends_at) - new Date()) / 86400000)
+      : null;
+    const expired = sub.trial_expired || (daysLeft !== null && daysLeft <= 0);
+    return expired
+      ? {
+          key: "trial-expired",
+          label: "Trial expired",
+          color: C.red,
+          bg: C.redSoft,
+          Icon: HourglassTopIcon,
+          detail: `Ended ${fmtDate(sub.trial_ends_at) ?? ""}`.trim(),
+        }
+      : {
+          key: "trial",
+          label: "Trial",
+          color: "#6D4AFF",
+          bg: "#F1EDFF",
+          Icon: HourglassTopIcon,
+          detail:
+            daysLeft !== null
+              ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left · ends ${fmtDate(sub.trial_ends_at)}`
+              : "Trial active",
+        };
+  }
+
+  if (cancelled || inactive) {
+    return {
+      key: "inactive",
+      label: cancelled ? "Premium · Cancelled" : "Premium · Inactive",
+      color: C.red,
+      bg: C.redSoft,
+      Icon: BlockIcon,
+      detail: cancelled
+        ? `Cancelled ${fmtDate(sub.cancelled_at) ?? ""}`.trim()
+        : "Access disabled",
+    };
+  }
+
+  return {
+    key: "premium",
+    label: "Premium",
+    color: "#087E8B",
+    bg: "#E7F6F7",
+    Icon: WorkspacePremiumIcon,
+    detail: `Since ${fmtDate(sub.payg_started_at || sub.started_at) ?? "—"}`,
+  };
+};
+
+function PlanBadge({ subscription, size = "md" }) {
+  const { label, color, bg, Icon } = getPlanMeta(subscription);
+  const small = size === "sm";
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "4px",
+        px: small ? "8px" : "10px",
+        py: small ? "3px" : "4px",
+        borderRadius: "999px",
+        backgroundColor: bg,
+        color,
+        fontSize: small ? 11 : 12,
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+        border: `1px solid ${color}22`,
+      }}
+    >
+      <Icon sx={{ fontSize: small ? 13 : 15 }} />
+      {label}
+    </Box>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 // Main Page
@@ -98,6 +205,25 @@ export default function AmOrganizations() {
             </Box>
           </Box>
         ),
+      },
+      {
+        id: "plan",
+        accessorFn: (row) => getPlanMeta(row.subscription).label,
+        header: "Plan",
+        size: 190,
+        Cell: ({ row }) => {
+          const sub = row.original.subscription;
+          return (
+            <Box>
+              <PlanBadge subscription={sub} size="sm" />
+              <Typography
+                sx={{ fontSize: 11, color: C.textTertiary, mt: "3px" }}
+              >
+                {getPlanMeta(sub).detail}
+              </Typography>
+            </Box>
+          );
+        },
       },
       {
         accessorKey: "industry",
@@ -363,6 +489,38 @@ function CompanyCard({ org, onOpen }) {
             </Typography>
           </Box>
         </Box>
+
+        {/* Subscription plan */}
+        {(() => {
+          const plan = getPlanMeta(org.subscription);
+          return (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                p: "10px 12px",
+                mb: "16px",
+                borderRadius: "10px",
+                backgroundColor: plan.bg,
+                border: `1px solid ${plan.color}22`,
+              }}
+            >
+              <PlanBadge subscription={org.subscription} />
+              <Typography
+                sx={{
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: plan.color,
+                  textAlign: "right",
+                }}
+              >
+                {plan.detail}
+              </Typography>
+            </Box>
+          );
+        })()}
 
         <Divider sx={{ borderColor: C.border, mb: "16px" }} />
 
