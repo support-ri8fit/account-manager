@@ -68,6 +68,14 @@ export const subscriptionsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Subscriptions"],
     }),
+    extendOrganisationTrial: builder.mutation({
+      query: ({ organisationId, extension_days }) => ({
+        url: `/acc/account-manager/organisations/${organisationId}/trial-extension`,
+        method: "PUT",
+        body: { extension_days },
+      }),
+      invalidatesTags: ["Subscriptions"],
+    }),
     getUpgradeRequests: builder.query({
       query: (status = "pending") => ({
         url: "/subscriptions/account-manager/upgrade-requests",
@@ -104,6 +112,7 @@ export const {
   useCancelOrganisationSubscriptionMutation,
   useResumeOrganisationSubscriptionMutation,
   useReinitiateOrganisationTrialMutation,
+  useExtendOrganisationTrialMutation,
   useGetUpgradeRequestsQuery,
   useReviewUpgradeRequestMutation,
   useUpgradeOrganisationToPaygMutation,

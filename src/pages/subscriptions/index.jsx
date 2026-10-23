@@ -12,6 +12,7 @@ import {
 import ReusableMRT from "../../components/table";
 import {
   useCancelOrganisationSubscriptionMutation,
+  useExtendOrganisationTrialMutation,
   useGetOrganisationSubscriptionsQuery,
   useReinitiateOrganisationTrialMutation,
   useResumeOrganisationSubscriptionMutation,
@@ -116,7 +117,7 @@ const EmptyState = () => (
   </Box>
 );
 
-const SubscriptionActions = ({ subscription, onUpgrade, onCancel, onReinitiate, onResume, onViewUsage }) => {
+const SubscriptionActions = ({ subscription, onUpgrade, onCancel, onReinitiate, onResume, onExtendTrial, onViewUsage }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const closeMenu = () => setAnchorEl(null);
   const runAction = (action) => {
@@ -150,6 +151,9 @@ const SubscriptionActions = ({ subscription, onUpgrade, onCancel, onReinitiate, 
           <MenuItem onClick={() => runAction(onViewUsage)}>View usage</MenuItem>
         )}
         <MenuItem onClick={() => runAction(onUpgrade)}>Upgrade plan</MenuItem>
+        {isTrialSubscription(subscription) && !isCancelledSubscription(subscription) && (
+          <MenuItem onClick={() => runAction(onExtendTrial)}>Extend trial</MenuItem>
+        )}
         {isTrialSubscription(subscription) && !subscription.is_active && !isCancelledSubscription(subscription) && (
           <MenuItem onClick={() => runAction(onReinitiate)}>Reinitiate trial</MenuItem>
         )}
@@ -160,7 +164,7 @@ const SubscriptionActions = ({ subscription, onUpgrade, onCancel, onReinitiate, 
         )}
         {subscription.is_active && (
           <MenuItem onClick={() => runAction(onCancel)} sx={{ color: "#DC2626" }}>
-            Cancel subscription
+            {isTrialSubscription(subscription) ? "Cancel Trial" : "Cancel Subscription"}
           </MenuItem>
         )}
       </Menu>
@@ -168,7 +172,7 @@ const SubscriptionActions = ({ subscription, onUpgrade, onCancel, onReinitiate, 
   );
 };
 
-const SubscriptionCard = ({ subscription, onActivate, onCancel, onReinitiate, onResume }) => {
+const SubscriptionCard = ({ subscription, onActivate, onCancel, onReinitiate, onResume, onExtendTrial }) => {
   const isTrial = isTrialSubscription(subscription);
   const dateLabel = isTrial ? "Trial ends" : "Premium started";
   const dateValue = isTrial ? subscription.trial_ends_at : subscription.payg_started_at;
@@ -203,8 +207,13 @@ const SubscriptionCard = ({ subscription, onActivate, onCancel, onReinitiate, on
               Upgrade Plan
             </Button>
             <Button size="small" variant="outlined" color="error" onClick={() => onCancel(subscription)}>
-              Cancel Subscription
+              {isTrial ? "Cancel Trial" : "Cancel Subscription"}
             </Button>
+            {isTrial && !isCancelledSubscription(subscription) && (
+              <Button size="small" variant="outlined" onClick={() => onExtendTrial(subscription)} sx={{ color: TRIAL_COLOR, borderColor: TRIAL_COLOR }}>
+                Extend Trial
+              </Button>
+            )}
           </Stack>
         ) : (
           <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", rowGap: 1 }}>
@@ -219,6 +228,11 @@ const SubscriptionCard = ({ subscription, onActivate, onCancel, onReinitiate, on
             {isTrialSubscription(subscription) && !isCancelledSubscription(subscription) && (
               <Button size="small" variant="outlined" onClick={() => onReinitiate(subscription)} sx={{ color: PRIMARY_COLOR, borderColor: PRIMARY_COLOR }}>
                 Reinitiate Trial
+              </Button>
+            )}
+            {isTrialSubscription(subscription) && !isCancelledSubscription(subscription) && (
+              <Button size="small" variant="outlined" onClick={() => onExtendTrial(subscription)} sx={{ color: TRIAL_COLOR, borderColor: TRIAL_COLOR }}>
+                Extend Trial
               </Button>
             )}
           </Stack>
@@ -318,12 +332,16 @@ const Subscriptions = () => {
   const [subscriptionToCancel, setSubscriptionToCancel] = useState(null);
   const [subscriptionToReinitiate, setSubscriptionToReinitiate] = useState(null);
   const [subscriptionToResume, setSubscriptionToResume] = useState(null);
+  const [subscriptionToExtendTrial, setSubscriptionToExtendTrial] = useState(null);
+  const [extensionDays, setExtensionDays] = useState("1");
   const [cancelError, setCancelError] = useState("");
   const [reinitiateError, setReinitiateError] = useState("");
   const [resumeError, setResumeError] = useState("");
+  const [extensionError, setExtensionError] = useState("");
   const [cancelOrganisationSubscription, { isLoading: isCancelling }] = useCancelOrganisationSubscriptionMutation();
   const [reinitiateOrganisationTrial, { isLoading: isReinitiating }] = useReinitiateOrganisationTrialMutation();
   const [resumeOrganisationSubscription, { isLoading: isResuming }] = useResumeOrganisationSubscriptionMutation();
+  const [extendOrganisationTrial, { isLoading: isExtendingTrial }] = useExtendOrganisationTrialMutation();
   const navigate = useNavigate();
   const { data: response, isLoading, isFetching, isError, error, refetch } =
     useGetOrganisationSubscriptionsQuery();
@@ -371,6 +389,31 @@ const Subscriptions = () => {
       setResumeError(requestError?.data?.message || requestError?.data?.detail || "Unable to resume this subscription. Please try again.");
     }
   };
+  const confirmTrialExtension = async () => {
+    if (!subscriptionToExtendTrial?.organisation_id) return;
+    const days = Number(extensionDays);
+    if (!Number.isInteger(days) || days < 1) {
+      setExtensionError("Enter a whole number of days greater than zero.");
+      return;
+    }
+    setExtensionError("");
+    try {
+      await extendOrganisationTrial({
+        organisationId: subscriptionToExtendTrial.organisation_id,
+        extension_days: days,
+      }).unwrap();
+      setSubscriptionToExtendTrial(null);
+      setExtensionDays("1");
+      refetch();
+    } catch (requestError) {
+      setExtensionError(requestError?.data?.message || requestError?.data?.detail || "Unable to extend this trial. Please try again.");
+    }
+  };
+  const openTrialExtension = (subscription) => {
+    setExtensionError("");
+    setExtensionDays("1");
+    setSubscriptionToExtendTrial(subscription);
+  };
   const columns = useMemo(() => [
     { accessorKey: "organisation_name", header: "Organisation", size: 175, cellSx: { minWidth: 130 } },
     { accessorKey: "subscription_type", header: "Plan", size: 110, Cell: ({ row }) => <PlanChip subscription={row.original} /> },
@@ -387,6 +430,7 @@ const Subscriptions = () => {
       onCancel={() => { setCancelError(""); setSubscriptionToCancel(row.original); }}
       onReinitiate={() => { setReinitiateError(""); setSubscriptionToReinitiate(row.original); }}
       onResume={() => { setResumeError(""); setSubscriptionToResume(row.original); }}
+      onExtendTrial={() => openTrialExtension(row.original)}
     /> },
   ], [navigate]);
 
@@ -433,7 +477,7 @@ const Subscriptions = () => {
         ) : (
           <Box sx={{ height: "100%", overflowY: "auto", pr: 0.5 }}>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)", xl: "repeat(4, 1fr)" }, gap: 2 }}>
-              {filteredSubscriptions.map((subscription) => <SubscriptionCard key={subscription.organisation_id} subscription={subscription} onActivate={setSubscriptionToActivate} onCancel={(item) => { setCancelError(""); setSubscriptionToCancel(item); }} onReinitiate={(item) => { setReinitiateError(""); setSubscriptionToReinitiate(item); }} onResume={(item) => { setResumeError(""); setSubscriptionToResume(item); }} />)}
+              {filteredSubscriptions.map((subscription) => <SubscriptionCard key={subscription.organisation_id} subscription={subscription} onActivate={setSubscriptionToActivate} onCancel={(item) => { setCancelError(""); setSubscriptionToCancel(item); }} onReinitiate={(item) => { setReinitiateError(""); setSubscriptionToReinitiate(item); }} onResume={(item) => { setResumeError(""); setSubscriptionToResume(item); }} onExtendTrial={openTrialExtension} />)}
             </Box>
             {filteredSubscriptions.length === 0 && <EmptyState />}
           </Box>
@@ -442,17 +486,19 @@ const Subscriptions = () => {
       </Box>
       {subscriptionToActivate && <UpgradePaygDialog key={subscriptionToActivate.organisation_id} subscription={subscriptionToActivate} onClose={() => setSubscriptionToActivate(null)} />}
       <Dialog open={Boolean(subscriptionToCancel)} onClose={isCancelling ? undefined : () => setSubscriptionToCancel(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Cancel subscription?</DialogTitle>
+        <DialogTitle>Cancel {isTrialSubscription(subscriptionToCancel || {}) ? "trial" : "subscription"}?</DialogTitle>
         <DialogContent dividers>
           <Typography fontSize="14px" color="#4B5563">
-            Cancel the subscription for <strong>{subscriptionToCancel?.organisation_name || "this organisation"}</strong>? This will mark the subscription as cancelled.
+            Cancel the {isTrialSubscription(subscriptionToCancel || {}) ? "trial" : "subscription"} for <strong>{subscriptionToCancel?.organisation_name || "this organisation"}</strong>? This will mark it as cancelled.
           </Typography>
           {cancelError && <Alert severity="error" sx={{ mt: 2 }}>{cancelError}</Alert>}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setSubscriptionToCancel(null)} disabled={isCancelling}>Keep subscription</Button>
+          <Button onClick={() => setSubscriptionToCancel(null)} disabled={isCancelling}>
+            Keep {isTrialSubscription(subscriptionToCancel || {}) ? "trial" : "subscription"}
+          </Button>
           <Button color="error" variant="contained" onClick={confirmCancellation} disabled={isCancelling}>
-            {isCancelling ? "Cancelling..." : "Confirm cancellation"}
+            {isCancelling ? "Cancelling..." : `Cancel ${isTrialSubscription(subscriptionToCancel || {}) ? "Trial" : "Subscription"}`}
           </Button>
         </DialogActions>
       </Dialog>
@@ -483,6 +529,31 @@ const Subscriptions = () => {
           <Button onClick={() => setSubscriptionToResume(null)} disabled={isResuming}>Keep cancelled</Button>
           <Button variant="contained" onClick={confirmResume} disabled={isResuming} sx={{ backgroundColor: "#15803D", "&:hover": { backgroundColor: "#166534" } }}>
             {isResuming ? "Resuming..." : "Resume subscription"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={Boolean(subscriptionToExtendTrial)} onClose={isExtendingTrial ? undefined : () => setSubscriptionToExtendTrial(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Extend trial</DialogTitle>
+        <DialogContent dividers>
+          <Typography fontSize="14px" color="#4B5563" sx={{ mb: 2 }}>
+            Add days to the trial for <strong>{subscriptionToExtendTrial?.organisation_name || "this organisation"}</strong>.
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            label="Extension days"
+            type="number"
+            value={extensionDays}
+            onChange={(event) => setExtensionDays(event.target.value)}
+            slotProps={{ htmlInput: { min: 1, step: 1 } }}
+          />
+          {extensionError && <Alert severity="error" sx={{ mt: 2 }}>{extensionError}</Alert>}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setSubscriptionToExtendTrial(null)} disabled={isExtendingTrial}>Close</Button>
+          <Button variant="contained" onClick={confirmTrialExtension} disabled={isExtendingTrial} sx={{ backgroundColor: TRIAL_COLOR }}>
+            {isExtendingTrial ? "Extending..." : "Extend Trial"}
           </Button>
         </DialogActions>
       </Dialog>
