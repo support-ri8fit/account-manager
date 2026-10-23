@@ -1,19 +1,13 @@
 import React from "react";
 import { FormControl, MenuItem, Select } from "@mui/material";
 import { COLORS } from "../../theme/index.js";
-import { useGetSubFunctionsQuery } from "../../redux/services/dashboard/dashboardService.js";
+import { useGetCountriesQuery, useGetSubFunctionsQuery } from "../../redux/services/dashboard/dashboardService.js";
 
 const PERIOD_OPTIONS = [
   { value: 3, label: "Last 3 months" },
   { value: 6, label: "Last 6 months" },
   { value: "all", label: "All" },
   // { value: 12, label: "Last 12 months" },
-];
-
-export const COUNTRY_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "India", label: "India" },
-  { value: "United States", label: "United States" },
 ];
 
 const selectSx = {
@@ -41,17 +35,30 @@ const PeriodSelect = ({ value, onChange, disabled }) => (
 );
 
 // ── Country selector — top-level dashboard filter bar ───────────────────────
-export const CountrySelect = ({ value, onChange, disabled }) => (
-  <FormControl size="small" sx={{ minWidth: 140 }} disabled={disabled}>
-    <Select value={value} onChange={(e) => onChange(e.target.value)} sx={selectSx} MenuProps={menuPropsSx}>
-      {COUNTRY_OPTIONS.map((opt) => (
-        <MenuItem key={opt.value} value={opt.value}>
-          {opt.label}
-        </MenuItem>
-      ))}
-    </Select>
-  </FormControl>
-);
+export const CountrySelect = ({ value, onChange, disabled }) => {
+  const { data: countries = [], isLoading: countriesLoading } = useGetCountriesQuery();
+  const options = [
+    { value: "all", label: "All" },
+    ...countries
+      .map((country) => {
+        const label = typeof country === "string" ? country : country?.name ?? country?.label ?? country?.country;
+        return label ? { value: label, label } : null;
+      })
+      .filter(Boolean),
+  ];
+
+  return (
+    <FormControl size="small" sx={{ minWidth: 140 }} disabled={disabled || countriesLoading}>
+      <Select value={value ?? "all"} onChange={(e) => onChange(e.target.value)} sx={selectSx} MenuProps={menuPropsSx}>
+        {options.map((opt) => (
+          <MenuItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+};
 
 // ── Sub-function selector — top-level dashboard filter bar ──────────────────
 export const SubFunctionSelect = ({ value, onChange, disabled }) => {

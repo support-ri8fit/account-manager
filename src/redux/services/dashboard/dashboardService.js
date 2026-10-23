@@ -145,6 +145,19 @@ export const dashboardService = api.injectEndpoints({
             }),
             keepUnusedDataFor: 300,
         }),
+
+        getCountries: builder.query({
+            query: () => ({
+                url: "/dropdown/countries",
+                method: "GET",
+            }),
+            transformResponse: (response) => {
+                if (Array.isArray(response)) return response;
+                if (Array.isArray(response?.data)) return response.data;
+                return [];
+            },
+            keepUnusedDataFor: 300,
+        }),
     }),
 });
 
@@ -157,4 +170,5 @@ export const {
     useGetJobAnalyticsByIdQuery,
     useLazyGetJobStageDetailsQuery,
     useGetSubFunctionsQuery,
+    useGetCountriesQuery,
 } = dashboardService;

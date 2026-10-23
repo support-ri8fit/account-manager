@@ -41,6 +41,70 @@ export const OrganizationOverviewService = api.injectEndpoints({
     }),
 
     // ==========================================================
+    // JOB COUNTS BY SUB-FUNCTION
+    // ==========================================================
+    getJobsCountBySubFunction: builder.query({
+      query: ({
+        organisationId,
+        status = "open",
+        country = "all",
+      }) => {
+        const params = new URLSearchParams({
+          organisation_id: organisationId,
+          status,
+          country:
+            !country || country === "all"
+              ? "all"
+              : country,
+        });
+
+        return `/acc/get_jobs_count_by_sub_function?${params.toString()}`;
+      },
+
+      providesTags: ["JobAnalytics"],
+    }),
+
+    // ==========================================================
+    // CANDIDATE SUMMARY
+    // ==========================================================
+    getCandidateSummary: builder.query({
+      query: ({
+        organisationId,
+        groupBy = "month",
+        periodCount = 6,
+        status = "all",
+        countsType = "cumulative",
+        filterBySubfunction,
+        country = "all",
+        allTime = true,
+      }) => {
+        const params = new URLSearchParams({
+          organisation_id: organisationId,
+          group_by: groupBy,
+          period_count: String(periodCount),
+          status,
+          counts_type: countsType,
+          country:
+            !country || country === "all"
+              ? "all_locations"
+              : country,
+          all_time: String(allTime),
+        });
+
+        if (filterBySubfunction) {
+          params.append(
+            "filter_by_subfunction",
+            filterBySubfunction
+          );
+        }
+
+        return `/acc/analytics/jobs/candidate-summary?${params.toString()}`;
+      },
+
+      providesTags: ["CandidateSummary"],
+    }),
+
+    // ==========================================================
     // TOTAL POSITIONS
     // ==========================================================
     getTotalPositions: builder.query({
@@ -287,6 +351,8 @@ export const OrganizationOverviewService = api.injectEndpoints({
 
 export const {
   useGetJobOverviewQuery,
+  useGetJobsCountBySubFunctionQuery,
+  useGetCandidateSummaryQuery,
   useGetTotalPositionsQuery,
   useGetCandidateFunnelTrendQuery,
   useGetInterviewTrendQuery,

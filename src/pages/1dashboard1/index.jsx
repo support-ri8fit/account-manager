@@ -32,6 +32,9 @@ import { useNavigate } from "react-router-dom";
 
 import {
   useGetJobOverviewQuery,
+  useGetJobsCountBySubFunctionQuery,
+  useGetCandidateSummaryQuery,
+  useGetCandidatesExperienceQuery,
   useGetTotalPositionsQuery,
   useGetCandidateFunnelTrendQuery,
   useGetInterviewTrendQuery,
@@ -39,6 +42,7 @@ import {
   useGetStageDetailsQuery,
 } from "../../redux/services/organizationOverview/organizationOverview.js";
 import { useGetOrganisationJobsQuery } from "../../redux/services/requisition/requisition.js";
+import { useGetCountriesQuery } from "../../redux/services/dashboard/dashboardService.js";
 
 // ============================================================
 // COLORS
@@ -90,9 +94,8 @@ const FloatingTooltip = ({ tip }) => {
         position: "fixed",
         left: tip.x,
         top: tip.y,
-        transform: `translate(${
-          flipX ? "calc(-100% - 14px)" : "14px"
-        }, ${flipY ? "calc(-100% - 14px)" : "14px"})`,
+        transform: `translate(${flipX ? "calc(-100% - 14px)" : "14px"
+          }, ${flipY ? "calc(-100% - 14px)" : "14px"})`,
         zIndex: 2000,
         minWidth: 140,
         maxWidth: 230,
@@ -198,13 +201,6 @@ const DATA = {
     { label: "Clinical Programmer/CRF Dev", value: 14, color: "#D32F2F" },
     { label: "Medical Coder", value: 5, color: "#FFA000" },
     { label: "Generic", value: 0, color: "#9E9E9E" },
-  ],
-
-  experience: [
-    { label: "0–2 yrs", value: 4, pct: 3, color: "#174FDF" },
-    { label: "3–5 yrs", value: 69, pct: 52, color: "#0571ED" },
-    { label: "6–10 yrs", value: 54, pct: 41, color: "#0097A7" },
-    { label: "10+ yrs", value: 6, pct: 5, color: "#00BBD4" },
   ],
 
   offers: [
@@ -698,7 +694,14 @@ const StatusItem = ({
 // KPI CARD
 // ============================================================
 
-const KpiCard = ({ title, data, hoverModel, onOpenAll, onOpenStatus }) => {
+const KpiCard = ({
+  title,
+  data,
+  hoverModel,
+  onOpenAll,
+  onOpenStatus,
+  clickableStatuses,
+}) => {
   const tooltip = useChartTooltip();
 
   const seriesDefs = [
@@ -857,12 +860,12 @@ const KpiCard = ({ title, data, hoverModel, onOpenAll, onOpenStatus }) => {
                 hasSeries
                   ? sparkSeries
                   : [
-                      {
-                        name: "Total",
-                        color: COLORS.blue,
-                        values: data.graph,
-                      },
-                    ]
+                    {
+                      name: "Total",
+                      color: COLORS.blue,
+                      values: data.graph,
+                    },
+                  ]
               }
               labels={sparkLabels}
               tooltip={tooltip}
@@ -885,21 +888,31 @@ const KpiCard = ({ title, data, hoverModel, onOpenAll, onOpenStatus }) => {
           overflow: "hidden",
         }}
       >
-        {seriesDefs.map((def) => (
-          <StatusItem
-            key={def.key}
-            label={def.name}
-            value={data[def.key]}
-            color={def.color}
-            max={data.closed}
-            loading={data.loading}
-            {...statusTip(def)}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenStatus?.(def.status);
-            }}
-          />
-        ))}
+        {seriesDefs.map((def) => {
+          const isStatusClickable =
+            !!onOpenStatus &&
+            (!clickableStatuses || clickableStatuses.includes(def.status));
+
+          return (
+            <StatusItem
+              key={def.key}
+              label={def.name}
+              value={data[def.key]}
+              color={def.color}
+              max={data.closed}
+              loading={data.loading}
+              {...statusTip(def)}
+              onClick={
+                isStatusClickable
+                  ? (event) => {
+                    event.stopPropagation();
+                    onOpenStatus(def.status);
+                  }
+                  : undefined
+              }
+            />
+          );
+        })}
       </Box>
 
       {tooltip.node}
@@ -948,35 +961,35 @@ const MiniStat = ({ label, value }) => {
 // CANDIDATE CARD
 // ============================================================
 
-const CandidateCard = () => {
+const CandidateCard = ({ data, loading = false }) => {
   const tooltip = useChartTooltip();
 
   const candidateRows = [
     {
       label: "Applications",
-      value: DATA.candidates.applications,
+      value: data.applications,
       color: COLORS.blue,
     },
     {
       label: "Shortlisted",
-      value: DATA.candidates.shortlisted,
+      value: data.shortlisted,
       color: COLORS.shortlisted,
     },
     {
       label: "Interview",
-      value: DATA.candidates.interview,
+      value: data.interview,
       color: COLORS.interview,
     },
     {
       label: "Onboarded",
-      value: DATA.candidates.onboarded,
+      value: data.onboarded,
       color: COLORS.onboarded,
     },
   ];
 
   return (
     <Box
-      {...tooltip.bind("Candidates", candidateRows, DATA.candidates.total)}
+      {...tooltip.bind("Candidates", candidateRows, data.total)}
       sx={{
         height: 108,
         width: "100%",
@@ -1034,7 +1047,7 @@ const CandidateCard = () => {
             whiteSpace: "nowrap",
           }}
         >
-          {DATA.candidates.total}
+          {loading ? "..." : data.total}
         </Typography>
       </Box>
 
@@ -1052,10 +1065,22 @@ const CandidateCard = () => {
           cursor: "default",
         }}
       >
-        <MiniStat label="Applications" value={DATA.candidates.applications} />
-        <MiniStat label="Shortlisted" value={DATA.candidates.shortlisted} />
-        <MiniStat label="Interview" value={DATA.candidates.interview} />
-        <MiniStat label="Onboarded" value={DATA.candidates.onboarded} />
+        <MiniStat
+          label="Applications"
+          value={loading ? "..." : data.applications}
+        />
+        <MiniStat
+          label="Shortlisted"
+          value={loading ? "..." : data.shortlisted}
+        />
+        <MiniStat
+          label="Interview"
+          value={loading ? "..." : data.interview}
+        />
+        <MiniStat
+          label="Onboarded"
+          value={loading ? "..." : data.onboarded}
+        />
       </Box>
 
       {tooltip.node}
@@ -1560,9 +1585,8 @@ const ExpandedInterviewLines = ({ data, labels = [], loading = false }) => {
           .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
           .join(" ");
 
-        const areaPath = `${linePath} L ${points[points.length - 1].x} ${
-          height - pad
-        } L ${points[0].x} ${height - pad} Z`;
+        const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - pad
+          } L ${points[0].x} ${height - pad} Z`;
 
         return (
           <Box
@@ -1925,44 +1949,14 @@ const ExpandedDonut = ({ data, total }) => {
 };
 
 // ============================================================
-// INTERVIEW LINE CHART
-// Compact pill rows: label | count | small smooth trend graph.
+// INTERVIEW PROGRESS CHART
+// Compact pill rows: label | count | horizontal progress bar.
 // ============================================================
-
-// smooth cubic path through points (no overshoot below the baseline)
-const buildSmoothPath = (points) =>
-  points.reduce((acc, point, index, arr) => {
-    if (index === 0) return `M ${point.x} ${point.y}`;
-
-    const prev = arr[index - 1];
-    const midX = (prev.x + point.x) / 2;
-
-    return `${acc} C ${midX} ${prev.y}, ${midX} ${point.y}, ${point.x} ${point.y}`;
-  }, "");
 
 const InterviewLineChart = ({ data, labels = [], loading = false }) => {
   const tooltip = useChartTooltip();
 
-  const width = 112;
-  const height = 22;
-  const pad = 3;
-  const baseY = height - pad;
-
-  // each row is scaled on its own so small counts still show a shape
-  const buildPoints = (values) => {
-    const list = Array.isArray(values) ? values : [];
-    const first = Number(list[0]) || 0;
-
-    // a single bucket (e.g. "All Time") can't draw a trend -> flat line
-    const safe = list.length >= 2 ? list : [first, first];
-
-    const rowMax = Math.max(...safe.map((v) => Number(v) || 0), 1);
-
-    return safe.map((value, index) => ({
-      x: pad + (index / (safe.length - 1)) * (width - pad * 2),
-      y: baseY - ((Number(value) || 0) / rowMax) * (height - pad * 2),
-    }));
-  };
+  const maxValue = Math.max(...data.map((item) => Number(item.value) || 0), 1);
 
   return (
     <Box
@@ -1974,13 +1968,9 @@ const InterviewLineChart = ({ data, labels = [], loading = false }) => {
       }}
     >
       {data.map((item) => {
-        const points = buildPoints(item.line);
-
         const hasTrend = Array.isArray(item.line) && item.line.length > 1;
-
-        const linePath = buildSmoothPath(points);
-
-        const areaPath = `${linePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`;
+        const value = Number(item.value) || 0;
+        const progress = loading ? 0 : (value / maxValue) * 100;
 
         return (
           <Box
@@ -1989,16 +1979,16 @@ const InterviewLineChart = ({ data, labels = [], loading = false }) => {
               item.label,
               hasTrend
                 ? item.line.map((v, i) => ({
-                    label: labels[i] ?? `P${i + 1}`,
-                    value: v,
-                    color: item.color,
-                  }))
+                  label: labels[i] ?? `P${i + 1}`,
+                  value: v,
+                  color: item.color,
+                }))
                 : [{ label: "Count", value: item.value, color: item.color }],
               item.value
             )}
             sx={{
               display: "grid",
-              gridTemplateColumns: "minmax(64px, 1fr) 30px 112px",
+              gridTemplateColumns: "minmax(64px, 1fr) 30px minmax(112px, 1.35fr)",
               alignItems: "center",
               columnGap: 1,
               pl: 1.4,
@@ -2033,35 +2023,32 @@ const InterviewLineChart = ({ data, labels = [], loading = false }) => {
               {loading ? "..." : item.value}
             </Typography>
 
-            <svg
-              width={width}
-              height={height}
-              viewBox={`0 0 ${width} ${height}`}
-              style={{ display: "block", overflow: "visible" }}
+            <Box
+              role="progressbar"
+              aria-label={`${item.label} interviews`}
+              aria-valuenow={value}
+              aria-valuemin={0}
+              aria-valuemax={maxValue}
+              sx={{
+                position: "relative",
+                height: 9,
+                borderRadius: "999px",
+                background: `${item.color}22`,
+                overflow: "hidden",
+                minWidth: 0,
+              }}
             >
-              {hasTrend && (
-                <path d={areaPath} fill={item.color} opacity={0.16} />
-              )}
-
-              <path
-                d={linePath}
-                fill="none"
-                stroke={item.color}
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-                strokeLinecap="round"
+              <Box
+                sx={{
+                  width: `${progress}%`,
+                  height: "100%",
+                  minWidth: value > 0 ? 5 : 0,
+                  borderRadius: "999px",
+                  background: item.color,
+                  transition: "width .25s ease",
+                }}
               />
-
-              {points.map((p, i) => (
-                <circle
-                  key={i}
-                  cx={p.x}
-                  cy={p.y}
-                  r={i === 0 || i === points.length - 1 ? 2.8 : 2.2}
-                  fill={item.color}
-                />
-              ))}
-            </svg>
+            </Box>
           </Box>
         );
       })}
@@ -2495,8 +2482,8 @@ const CurrentPipelineChart = ({ data, loading = false, onStageClick }) => {
                     value:
                       first > 0
                         ? `${Math.round(
-                            ((Number(item.value) || 0) / first) * 100
-                          )}%`
+                          ((Number(item.value) || 0) / first) * 100
+                        )}%`
                         : "—",
                   },
                 ])}
@@ -3789,6 +3776,26 @@ const OrganizationOverview = ({ orgId }) => {
   const [userType, setUserType] = useState("current");
 
   const [selectedSubFunction, setSelectedSubFunction] = useState("all");
+  const [selectedCountry, setSelectedCountry] = useState("all");
+
+  const { data: countriesResponse = [] } = useGetCountriesQuery();
+
+  const COUNTRY_OPTIONS = useMemo(
+    () => [
+      { label: "All Countries", value: "all" },
+      ...countriesResponse
+        .map((country) => {
+          const label =
+            typeof country === "string"
+              ? country
+              : country?.name ?? country?.label ?? country?.country;
+
+          return label ? { label, value: label } : null;
+        })
+        .filter(Boolean),
+    ],
+    [countriesResponse]
+  );
 
   // Period filter: "3m" | "6m" | "all"
   const [period, setPeriod] = useState("all");
@@ -3834,6 +3841,8 @@ const OrganizationOverview = ({ orgId }) => {
   const subFunctionParam =
     selectedSubFunction === "all" ? undefined : selectedSubFunction;
 
+  const countryParam = selectedCountry === "all" ? "all" : selectedCountry;
+
   const { data: organisationJobsResponse, isLoading: isOrganisationJobsLoading } =
     useGetOrganisationJobsQuery(
       {
@@ -3852,6 +3861,138 @@ const OrganizationOverview = ({ orgId }) => {
     setJobsSearch("");
     setJobsDialogOpen(true);
   };
+
+  // ==========================================================
+  // CANDIDATES BY SUB-FUNCTION API
+  // ==========================================================
+
+  const {
+    data: subFunctionResponse,
+    isLoading: isSubFunctionLoading,
+    isFetching: isSubFunctionFetching,
+  } = useGetJobsCountBySubFunctionQuery(
+    {
+      organisationId: orgId,
+      status: "open",
+      country: countryParam,
+    },
+    { skip: !orgId }
+  );
+
+  const subFunctionData = useMemo(() => {
+    const rows = Array.isArray(subFunctionResponse?.data)
+      ? subFunctionResponse.data
+      : [];
+
+    const SUB_FUNCTION_COLORS = [
+      "#E91E8C",
+      "#7B61FF",
+      "#00BFA5",
+      "#D32F2F",
+      "#FFA000",
+      "#9E9E9E",
+    ];
+
+    return rows
+      .map((item, index) => ({
+        label: item?.sub_function
+          ? item.sub_function
+              .replace(/\s+/g, " ")
+              .trim()
+              .replace(/\b\w/g, (char) => char.toUpperCase())
+          : "Unknown",
+        value: Number(item?.count) || 0,
+        color: SUB_FUNCTION_COLORS[index % SUB_FUNCTION_COLORS.length],
+      }))
+      .filter((item) => item.value > 0);
+  }, [subFunctionResponse]);
+
+  const subFunctionLoading =
+    isSubFunctionLoading || isSubFunctionFetching;
+
+  // ==========================================================
+  // CANDIDATE SUMMARY API
+  // ==========================================================
+
+  const {
+    data: candidateSummaryResponse,
+    isLoading: isCandidateSummaryLoading,
+    isFetching: isCandidateSummaryFetching,
+  } = useGetCandidateSummaryQuery(
+    {
+      organisationId: orgId,
+      groupBy: "month",
+      periodCount: periodConfig.periodCount,
+      status: "all",
+      countsType: "cumulative",
+      filterBySubfunction: subFunctionParam,
+      country: countryParam,
+      allTime: periodConfig.allTime,
+    },
+    { skip: !orgId }
+  );
+
+  const { data: candidateExperienceResponse } = useGetCandidatesExperienceQuery(
+    {
+      organisationId: orgId,
+      groupBy: "month",
+      periodCount: periodConfig.periodCount,
+      status: "all",
+      filterBySubfunction: subFunctionParam,
+      country: countryParam,
+      allTime: periodConfig.allTime,
+    },
+    { skip: !orgId }
+  );
+
+  const candidateSummary = candidateSummaryResponse?.data ?? {};
+
+  const candidateCardData = {
+    total: Number(candidateSummary.candidates_count) || 0,
+    applications: Number(candidateSummary.application_count) || 0,
+    // The API returns selected_count. The existing UI calls this
+    // value "Shortlisted", so it is mapped to that UI label.
+    shortlisted: Number(candidateSummary.selected_count) || 0,
+    interview: Number(candidateSummary.interview_count) || 0,
+    onboarded: Number(candidateSummary.onboarded_count) || 0,
+    offers: Number(candidateSummary.offers_count) || 0,
+    rejected: Number(candidateSummary.rejected_count) || 0,
+  };
+
+  const candidateExperienceData = useMemo(() => {
+    const palette = ["#174FDF", "#0571ED", "#0097A7", "#00BBD4"];
+    const responseData = candidateExperienceResponse?.data;
+    const experience = responseData?.candidate_experience ??
+      responseData?.experience ?? responseData?.experience_breakdown ??
+      responseData?.candidates_experience ?? responseData?.breakdown ?? responseData;
+    const rows = Array.isArray(experience)
+      ? experience
+      : experience && typeof experience === "object"
+        ? Object.entries(experience).map(([label, value]) => ({ label, value }))
+        : [];
+    if (!rows.length) return [];
+
+    const normalized = rows.map((row, index) => ({
+      label: (row?.label ?? row?.experience ?? row?.experience_range ?? `Group ${index + 1}`)
+        .replaceAll("_years", " yrs")
+        .replaceAll("_", "–"),
+      value: Number(row?.value ?? row?.count ?? row?.candidates_count) || 0,
+      pct: 0,
+      color: palette[index % palette.length],
+    })).filter((row) => row.value > 0);
+    const total = normalized.reduce((sum, row) => sum + row.value, 0);
+    return normalized.map((row) => ({
+      ...row,
+      pct: total ? Math.round((row.value / total) * 100) : 0,
+    }));
+  }, [candidateExperienceResponse]);
+
+  const candidateSummaryLoading =
+    isCandidateSummaryLoading || isCandidateSummaryFetching;
+
+  // ==========================================================
+  // FILTERED JOBS
+  // ==========================================================
 
   const filteredJobs = useMemo(() => {
     const searchValue = jobsSearch.trim().toLowerCase();
@@ -3892,7 +4033,7 @@ const OrganizationOverview = ({ orgId }) => {
         periodCount: periodConfig.periodCount,
         status: "all",
         filterBySubfunction: subFunctionParam,
-        country: "all",
+        country: countryParam,
         allTime: periodConfig.allTime,
       },
       { skip: !orgId }
@@ -3911,7 +4052,7 @@ const OrganizationOverview = ({ orgId }) => {
         status: "all",
         countsType: "cumulative",
         filterBySubfunction: subFunctionParam,
-        country: "all",
+        country: countryParam,
         allTime: periodConfig.allTime,
       },
       { skip: !orgId }
@@ -3930,7 +4071,7 @@ const OrganizationOverview = ({ orgId }) => {
         status: "all",
         countsType: pipelineType,
         filterBySubfunction: subFunctionParam,
-        country: "all",
+        country: countryParam,
         allTime: periodConfig.allTime,
       },
       { skip: !orgId }
@@ -3952,7 +4093,7 @@ const OrganizationOverview = ({ orgId }) => {
       status: "all",
       countsType: interviewType,
       filterBySubfunction: subFunctionParam,
-      country: "all",
+      country: countryParam,
       allTime: periodConfig.allTime,
     },
     { skip: !orgId }
@@ -3974,7 +4115,7 @@ const OrganizationOverview = ({ orgId }) => {
       status: "all",
       countsType: offerType,
       filterBySubfunction: subFunctionParam,
-      country: "all",
+      country: countryParam,
       allTime: periodConfig.allTime,
     },
     { skip: !orgId }
@@ -4014,8 +4155,8 @@ const OrganizationOverview = ({ orgId }) => {
     jobOverview?.total_jobs?.labels ??
     Object.keys(
       jobOverview?.total_jobs?.open_jobs?.breakdown ??
-        jobOverview?.total_jobs?.breakdown ??
-        {}
+      jobOverview?.total_jobs?.breakdown ??
+      {}
     );
 
   const jobHoverModel = buildOverviewHoverModel({
@@ -4087,8 +4228,8 @@ const OrganizationOverview = ({ orgId }) => {
     totalPositionsData?.open_positions?.labels ??
     Object.keys(
       totalPositionsData?.open_positions?.breakdown ??
-        totalPositionsData?.breakdown ??
-        {}
+      totalPositionsData?.breakdown ??
+      {}
     );
 
   const positionsHoverModel = buildOverviewHoverModel({
@@ -4170,6 +4311,18 @@ const OrganizationOverview = ({ orgId }) => {
     },
   ];
 
+  // Merge candidate summary card data with candidate pipeline values.
+  // Prefer the pipeline's latest shortlisted value but keep the original
+  // summary value as a fallback (the user wanted remaining count kept).
+  const candidateCardDataMerged = useMemo(() => {
+    const shortlistedFromPipeline = latestValue(candidateFunnel?.shortlisted);
+    return {
+      ...candidateCardData,
+      shortlisted:
+        shortlistedFromPipeline || candidateCardData.shortlisted || 0,
+    };
+  }, [candidateCardData, candidateFunnel]);
+
   // ==========================================================
   // INTERVIEW API RESPONSE
   // ==========================================================
@@ -4178,7 +4331,7 @@ const OrganizationOverview = ({ orgId }) => {
 
   const interviewLabels =
     Array.isArray(interviewApiData.labels) &&
-    interviewApiData.labels.length > 0
+      interviewApiData.labels.length > 0
       ? interviewApiData.labels
       : ["all"];
 
@@ -4325,22 +4478,11 @@ const OrganizationOverview = ({ orgId }) => {
             zIndex: 20,
           }}
         >
-          {/* <Box sx={{ minWidth: 0, flexShrink: 0 }}>
-            <Toggle
-              value={userType}
-              onChange={setUserType}
-              options={[
-                { value: "all", label: "All Users" },
-                { value: "current", label: "Current User" },
-              ]}
-            />
-          </Box> */}
-
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: 1,
+              gap: 1,               
               flexWrap: "wrap",
               minWidth: 0,
               marginLeft: "auto",
@@ -4349,7 +4491,12 @@ const OrganizationOverview = ({ orgId }) => {
           >
             <Filter>All Jobs</Filter>
 
-            <Filter>All Countries</Filter>
+            <SubFunctionDropdown
+              value={selectedCountry}
+              onChange={setSelectedCountry}
+              options={COUNTRY_OPTIONS}
+              minWidth={{ xs: 150, sm: 165, md: 175 }}
+            />
 
             <SubFunctionDropdown
               value={selectedSubFunction}
@@ -4425,11 +4572,14 @@ const OrganizationOverview = ({ orgId }) => {
             title="Total Positions"
             data={positionsData}
             hoverModel={positionsHoverModel}
-            onOpenAll={() => openJobsDialog("all")}
             onOpenStatus={openJobsDialog}
+            clickableStatuses={["open"]}
           />
 
-          <CandidateCard />
+          <CandidateCard
+            data={candidateCardDataMerged}
+            loading={candidateSummaryLoading}
+          />
         </Box>
 
         {/* ====================================================
@@ -4462,7 +4612,7 @@ const OrganizationOverview = ({ orgId }) => {
               INTERVIEWS
           ================================================== */}
 
-          <ChartCard onClick={() => openJobsDialog("all")}>
+          <ChartCard >
             <Box
               sx={{
                 display: "flex",
@@ -4502,7 +4652,7 @@ const OrganizationOverview = ({ orgId }) => {
                   small
                   value={interviewChartType}
                   options={[
-                    { value: "line", label: "Line" },
+                    { value: "line", label: "Progress" },
                     { value: "bar", label: "Bar" },
                   ]}
                   onChange={setInterviewChartType}
@@ -4546,13 +4696,51 @@ const OrganizationOverview = ({ orgId }) => {
               SUB FUNCTIONS
           ================================================== */}
 
-          <ChartCard onClick={() => openJobsDialog("all")}>
+          <ChartCard>
             <CardHeader
               title="Candidates by Sub-function"
               onExpand={() => setExpandCard("subfunction")}
             />
 
-            <SubFunctionBars data={DATA.subFunctions} />
+            {subFunctionLoading ? (
+              <Box
+                sx={{
+                  minHeight: 220,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: COLORS.textSecondary,
+                  }}
+                >
+                  Loading...
+                </Typography>
+              </Box>
+            ) : subFunctionData.length > 0 ? (
+              <SubFunctionBars data={subFunctionData} />
+            ) : (
+              <Box
+                sx={{
+                  minHeight: 220,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: COLORS.textSecondary,
+                  }}
+                >
+                  No sub-function data available
+                </Typography>
+              </Box>
+            )}
           </ChartCard>
 
           {/* ==================================================
@@ -4614,7 +4802,7 @@ const OrganizationOverview = ({ orgId }) => {
               EXPERIENCE
           ================================================== */}
 
-          <ChartCard onClick={() => openJobsDialog("all")}>
+          <ChartCard >
             <CardHeader
               title="Candidate by Experience"
               toggle={{
@@ -4628,10 +4816,22 @@ const OrganizationOverview = ({ orgId }) => {
               onExpand={() => setExpandCard("experience")}
             />
 
-            {experienceType === "donut" ? (
-              <Donut data={DATA.experience} total={DATA.candidates.total} />
+            {candidateExperienceData.length ? (
+              experienceType === "donut" ? (
+                <Donut
+                  data={candidateExperienceData}
+                  total={candidateExperienceData.reduce((sum, item) => sum + item.value, 0)}
+                />
+              ) : (
+                <HorizontalBars
+                  data={candidateExperienceData}
+                  maxValue={Math.max(...candidateExperienceData.map((item) => item.value), 1)}
+                />
+              )
             ) : (
-              <HorizontalBars data={DATA.experience} maxValue={70} />
+              <Box sx={{ py: 5, textAlign: "center", color: COLORS.textSecondary, fontSize: 13 }}>
+                No candidate experience data available
+              </Box>
             )}
           </ChartCard>
 
@@ -4639,7 +4839,7 @@ const OrganizationOverview = ({ orgId }) => {
               OFFER STATUS
           ================================================== */}
 
-          <ChartCard onClick={() => openJobsDialog("all")}>
+          <ChartCard >
             <CardHeader
               title="Offer Status"
               toggle={{
@@ -4868,7 +5068,7 @@ const OrganizationOverview = ({ orgId }) => {
                   const normalizedStatus = normalizeJobStatus(job.status);
                   const statusColor =
                     normalizedStatus.includes("closed") ||
-                    normalizedStatus.includes("filled")
+                      normalizedStatus.includes("filled")
                       ? COLORS.closed
                       : normalizedStatus.includes("hold")
                         ? COLORS.hold
@@ -4948,9 +5148,8 @@ const OrganizationOverview = ({ orgId }) => {
                           >
                             {job.job_position_id ?? jobId}
                             {job.function || job.sub_function
-                              ? ` · ${job.function ?? ""}${
-                                  job.function && job.sub_function ? " · " : ""
-                                }${job.sub_function ?? ""}`
+                              ? ` · ${job.function ?? ""}${job.function && job.sub_function ? " · " : ""
+                              }${job.sub_function ?? ""}`
                               : ""}
                           </Typography>
                         </Box>
@@ -5050,7 +5249,7 @@ const OrganizationOverview = ({ orgId }) => {
                   small
                   value={interviewChartType}
                   options={[
-                    { value: "line", label: "Line" },
+                    { value: "line", label: "Progress" },
                     { value: "bar", label: "Bar" },
                   ]}
                   onChange={setInterviewChartType}
@@ -5088,16 +5287,53 @@ const OrganizationOverview = ({ orgId }) => {
             onClose={() => setExpandCard(null)}
             title="Candidates by Sub-function"
           >
-            <SubFunctionBars data={DATA.subFunctions} />
+            {subFunctionLoading ? (
+              <Box
+                sx={{
+                  minHeight: 300,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    color: COLORS.textSecondary,
+                  }}
+                >
+                  Loading...
+                </Typography>
+              </Box>
+            ) : subFunctionData.length > 0 ? (
+              <SubFunctionBars data={subFunctionData} />
+            ) : (
+              <Box
+                sx={{
+                  minHeight: 300,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    color: COLORS.textSecondary,
+                  }}
+                >
+                  No sub-function data available
+                </Typography>
+              </Box>
+            )}
           </ExpandDialog>
         )}
 
         {expandCard === "pipeline" && (
           <ExpandDialog
             onClose={() => setExpandCard(null)}
-            title={`Candidate Pipeline : ${
-              pipelineType === "current" ? "Current" : "Cumulative"
-            } Pipeline`}
+            title={`Candidate Pipeline : ${pipelineType === "current" ? "Current" : "Cumulative"
+              } Pipeline`}
             controls={
               <Toggle
                 small
@@ -5135,13 +5371,23 @@ const OrganizationOverview = ({ orgId }) => {
               />
             }
           >
-            {experienceType === "donut" ? (
-              <ExpandedDonut
-                data={DATA.experience}
-                total={DATA.candidates.total}
-              />
+            {candidateExperienceData.length ? (
+              experienceType === "donut" ? (
+                <ExpandedDonut
+                  data={candidateExperienceData}
+                  total={candidateExperienceData.reduce((sum, item) => sum + item.value, 0)}
+                />
+              ) : (
+                <HorizontalBars
+                  data={candidateExperienceData}
+                  maxValue={Math.max(...candidateExperienceData.map((item) => item.value), 1)}
+                  large
+                />
+              )
             ) : (
-              <HorizontalBars data={DATA.experience} maxValue={70} large />
+              <Box sx={{ py: 8, textAlign: "center", color: COLORS.textSecondary, fontSize: 14 }}>
+                No candidate experience data available
+              </Box>
             )}
           </ExpandDialog>
         )}
