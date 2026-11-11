@@ -109,6 +109,7 @@ import { toast } from "react-toastify";
    CONSTANTS
 ═══════════════════════════════════════════════ */
 const STAGE_CONFIG = [
+  { key: "application", label: "Application" },
   { key: "matched", label: "Matched" },
   { key: "shortlisted", label: "Shortlisted" },
   { key: "interviewing", label: "Interviewing" },
@@ -120,6 +121,7 @@ const STAGE_CONFIG = [
 // Maps a granular lifecycle value (the `type` on a simple timeline entry,
 // or `candidate.current_stage`) to one of the STAGE_CONFIG group keys.
 const STAGE_GROUP = {
+  application: "application",
   matched: "matched",
   shortlisted: "shortlisted",
   interview_scheduled: "interviewing",
@@ -137,6 +139,7 @@ const STAGE_GROUP = {
 };
 
 const SUB_LABEL = {
+  application: "completed",
   interview_scheduled: "scheduled",
   interview_completed: "completed",
   interview_cancelled: "Cancelled",
@@ -149,6 +152,7 @@ const SUB_LABEL = {
   rejected: "Rejected",
 };
 const BADGE_COLOR = {
+  completed: "completed",
   interview_scheduled: "scheduled",
   interview_completed: "completed",
   interview_passed: "completed",
@@ -270,7 +274,7 @@ function fmtDateIST(iso) {
 function getEntryGroup(entry) {
   const lookupKey = entry.stage?.toLowerCase().startsWith("interview_")
     ? "interview_scheduled"
-    : entry.type?.toLowerCase();
+    : (entry.type ?? entry.step_name)?.toLowerCase();
   return STAGE_GROUP[lookupKey] ?? null;
 }
 function groupState(groupKey, grouped, currentStage, hasRejected) {
@@ -4577,7 +4581,6 @@ function TimelineTab({
       skip: !matched_candidate_id,
     },
   );
-
   const entries = data?.timeline ?? [];
 
   const grouped = {};
@@ -4686,6 +4689,9 @@ function TimelineTab({
             const lifecycleEntries = stageEntries.filter(
               (e) => !e.stage?.toLowerCase().startsWith("interview_") && e.type !== "rejected",
             );
+            const headingStatus = stage.key === "application"
+              ? lifecycleEntries[0]?.status
+              : null;
 
             // Rejected is rendered separately, after interview rounds, since it
             // represents the terminal action taken *after* the rounds happened.
@@ -4745,15 +4751,24 @@ function TimelineTab({
                       >
                         {stage.label}
                       </Typography>
+                      {headingStatus && (
+                        <Box sx={{ ml: 1.5 }}>
+                          <StatusBadge
+                            label={headingStatus}
+                            color={headingStatus.toLowerCase()}
+                          />
+                        </Box>
+                      )}
                     </Box>
 
                     {/* Simple lifecycle entries (matched / shortlisted / selected / offer / hired) */}
                     {lifecycleEntries.map((entry, ei) => (
                       <Box key={entry.timestamp ?? ei} sx={{ mt: 1 }}>
-                        {SUB_LABEL[entry.type] && (
+                        {stage.key !== "application" &&
+                          (SUB_LABEL[entry.type] || entry.status || entry.step_name) && (
                           <StatusBadge
-                            label={SUB_LABEL[entry.type]}
-                            color={LIFECYCLE_BADGE_COLOR[entry.type]}
+                            label={SUB_LABEL[entry.type] ?? entry.status ?? entry.step_name}
+                            color={LIFECYCLE_BADGE_COLOR[entry.type] ?? entry.status?.toLowerCase()}
                           />
                         )}
 

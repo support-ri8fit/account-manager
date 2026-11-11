@@ -425,9 +425,7 @@ export default function RequisitionDetail() {
       )}
       {tab === 2 && (
         <ReqInterviewsTab
-          orgId={orgId}
           jobId={jobId}
-          jobPositionId={jobDetail?.positionId ?? job.job_position_id}
         />
       )}
       {tab === 3 && (
@@ -1516,15 +1514,14 @@ function ReqCandidatesTab({ jobId, orgId, navigate, orgName, jobTitle }) {
 }
 
 // ─── Tab 2: Interviews ────────────────────────────────────────────────────────
-function ReqInterviewsTab({ orgId, jobPositionId, jobId }) {
+function ReqInterviewsTab({ jobId }) {
   const [statusFilter, setStatusFilter] = useState("all");
+  const [view, setView] = useState("grid");
   const { data, isLoading, isError } = useGetJobInterviewsQuery(jobId);
-  console.log("iNTERVIEWSdata", data);
-  const all = (data?.data ?? []).filter(
-    (iv) => iv.job_position_id === jobPositionId,
-  );
-  console.log("all",all, "jobPositionId", jobPositionId);
-  
+  // This endpoint is already scoped by the requisition in the route. Returned
+  // interview records may not include job_position_id (or may use a different
+  // position identifier), so don't discard them with a second client filter.
+  const all = data?.data ?? [];
 
   const interviewStatuses = [
     { key: "scheduled", value: "Scheduled" },
@@ -1538,8 +1535,9 @@ function ReqInterviewsTab({ orgId, jobPositionId, jobId }) {
   const filtered =
     statusFilter === "all"
       ? all
-      : all.filter((iv) => (iv.status ?? "scheduled") === statusFilter);
-  console.log("filtered interviews", filtered);
+      : all.filter(
+          (iv) => (iv.status ?? "scheduled").toLowerCase() === statusFilter,
+        );
   if (isLoading)
     return (
       <Box display="flex" justifyContent="center" py={6}>
@@ -1579,6 +1577,7 @@ function ReqInterviewsTab({ orgId, jobPositionId, jobId }) {
             ))}
           </Select>
         </FormControl>
+        <ViewToggle view={view} onChange={setView} />
       </Box>
 
       {filtered.length === 0 ? (
@@ -1587,7 +1586,7 @@ function ReqInterviewsTab({ orgId, jobPositionId, jobId }) {
             No interviews found for this requisition.
           </Typography>
         </Box>
-      ) : (
+      ) : view === "grid" ? (
         <Grid container spacing={2}>
           {filtered.map((iv) => (
             <Grid size={{ xs: 12, sm: 6, md: 4, xl: 3 }} key={iv.interview_id}>
@@ -1595,19 +1594,62 @@ function ReqInterviewsTab({ orgId, jobPositionId, jobId }) {
             </Grid>
           ))}
         </Grid>
+      ) : (
+        <ReusableMRT
+          data={filtered}
+          enableRowActions={false}
+          enableRowSelection={false}
+          enableGlobalFilter
+          enableColumnFilters={false}
+          height="calc(100vh - 320px)"
+          columnData={[
+            {
+              accessorKey: "interview_step_name",
+              header: "Interview",
+              Cell: ({ row }) =>
+                row.original.interview_step_name ?? "—",
+            },
+            {
+              accessorFn: (row) =>
+                row.interview_type ?? row.interview_step_type ?? "—",
+              id: "interview_type",
+              header: "Type",
+            },
+            {
+              accessorFn: (row) => row.date ?? row.interview_date ?? "—",
+              id: "interview_date",
+              header: "Date",
+            },
+            {
+              accessorFn: (row) =>
+                [row.start_time, row.end_time].filter(Boolean).join(" – ") || "—",
+              id: "interview_time",
+              header: "Time",
+            },
+            { accessorKey: "platform", header: "Platform" },
+            { accessorKey: "status", header: "Status" },
+            {
+              accessorFn: (row) => row.created_by?.full_name ?? "—",
+              id: "created_by",
+              header: "Created by",
+            },
+          ]}
+        />
       )}
     </Box>
   );
 }
 
 function ReqInterviewCard({ interview }) {
+  const interviewType = interview.interview_type ?? interview.interview_step_type;
   const typeColor =
-    interview.interview_type?.toLowerCase() === "technical"
+    interviewType?.toLowerCase() === "technical"
       ? { bg: C.indigoSoft, color: C.indigo }
       : { bg: C.amberSoft, color: C.amber };
 
-  const formattedDate = interview.interview_date
-    ? new Date(interview.interview_date).toLocaleDateString("en-GB", {
+  const interviewDate = interview.interview_date ?? interview.date;
+  const formattedDate = interviewDate
+    ? new Date(interviewDate).toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -1667,7 +1709,7 @@ function ReqInterviewCard({ interview }) {
               letterSpacing: "0.05em",
             }}
           >
-            {interview.interview_type}
+            {interviewType ?? "Interview"}
           </Box>
         </Box>
 
@@ -1717,7 +1759,9 @@ function ReqInterviewCard({ interview }) {
             <Typography
               sx={{ fontSize: 11, fontWeight: 500, color: C.textPrimary }}
             >
-              {interview.created_by}
+              {typeof interview.created_by === "object"
+                ? interview.created_by.full_name
+                : interview.created_by}
             </Typography>
           </Box>
         )}

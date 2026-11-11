@@ -8,7 +8,8 @@
     "start": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:packs": "node scripts/generate-packs.cjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
