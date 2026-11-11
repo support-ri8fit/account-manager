@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Generated pack files
+generated-packs/
+
+# Pack generation script
+scripts/generate-packs.cjs
