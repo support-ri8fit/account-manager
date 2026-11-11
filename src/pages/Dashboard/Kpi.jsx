@@ -44,7 +44,7 @@ const cards = [
   },
 ];
 
-export default function KpiCards() {
+export default function KpiCards({ cards = [] }) {
   return (
     <Grid container spacing={2} sx={{ width: "100%" }}>
       {cards.map((card, index) => (
@@ -70,10 +70,10 @@ export default function KpiCards() {
             {/* Top */}
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <Box sx={{ minWidth: 0 }}>
-                <Typography fontWeight={700} fontSize={18} noWrap>
+                <Typography fontWeight={750} fontSize={21} color="#172033" noWrap>
                   {card.value}
                 </Typography>
-                <Typography fontSize={13} color="text.secondary" noWrap>
+                <Typography fontSize={12} color="text.secondary" noWrap>
                   {card.title}
                 </Typography>
               </Box>
@@ -103,31 +103,16 @@ export default function KpiCards() {
               mt={2}
             >
               <Typography
-                fontSize={12}
-                color={card.positive ? "#16A34A" : "#DC2626"}
-                fontWeight={500}
+                fontSize={11.5}
+                color={card.positive ? "#15803D" : "#B42318"}
+                fontWeight={650}
                 noWrap
               >
-                {card.change}{" "}
-                <Typography
-                  component="span"
-                  fontSize={12}
-                  color="text.secondary"
-                >
-                  vs Last Month
-                </Typography>
+                {card.change} {card.description || "vs. previous month"}
               </Typography>
 
-              <Typography
-                fontSize={12}
-                sx={{
-                  cursor: "pointer",
-                  color: "#2563EB",
-                  fontWeight: 500,
-                }}
-                noWrap
-              >
-                View All
+              <Typography fontSize={10.5} color="#98A2B3" noWrap>
+                Illustrative
               </Typography>
             </Box>
           </Card>

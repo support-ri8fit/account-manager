@@ -1,64 +1,34 @@
-import { Card, CardContent, Typography, Box } from "@mui/material";
-import { Fragment, useMemo } from "react";
+import { Card, CardContent, Typography, Box, Tooltip, Chip } from "@mui/material";
+import { Fragment } from "react";
+import dashboardData from "./dashboardData";
 
-const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const timeSlots = [
-  "12 mp", "12 pm", "02 pm", "12 am",
-  "10 am", "8 am", "6 am", "4 am", "2 am",
-];
-
-export default function InterviewHeatmap() {
-  const grid = useMemo(
-    () =>
-      timeSlots.map((h) => ({
-        label: h,
-        cells: days.map(() => Math.random() > 0.55),
-      })),
-    []
-  );
+export default function InterviewHeatmap({ interviews = dashboardData.interviews }) {
+  const maxCount = Math.max(1, ...interviews.slots.flatMap((slot) => slot.counts));
+  const getCellColor = (count) => count === 0
+    ? "#F2F4F7"
+    : `rgba(249, 115, 22, ${0.2 + (count / maxCount) * 0.75})`;
 
   return (
-    <Card sx={{ width: "100%",
-    height: "100%", borderRadius: 3, boxShadow: "0 1px 6px rgba(0,0,0,0.08)" }}>
-      <CardContent>
-        {/* Header */}
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          mb={2}
-        >
-          <Typography fontSize={14} fontWeight={600}>
-            🗓 Interviews this week
-          </Typography>
-          <Box
-            sx={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 2,
-              px: 1.5,
-              py: 0.4,
-              fontSize: 12,
-              color: "#374151",
-              cursor: "pointer",
-            }}
-          >
-            📅 Weekly ▾
+    <Card sx={{ width: "100%", height: "100%", borderRadius: 3, border: "1px solid #EAECF0", boxShadow: "0 2px 8px rgba(16,24,40,.04)" }}>
+      <CardContent sx={{ p: 1.75 }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.4}>
+          <Box>
+            <Typography fontSize={14} fontWeight={700} color="#172033">Interviews this week</Typography>
+            <Typography fontSize={10.5} color="#667085" sx={{ mt: 0.2 }}>Illustrative weekly schedule</Typography>
           </Box>
+          <Chip label={`${interviews.total} interviews`} size="small" sx={{ height: 24, bgcolor: "#FFF4EF", color: "#C2410C", fontWeight: 700, fontSize: 10.5 }} />
         </Box>
 
-        {/* ✅ Use native style prop — bypasses MUI sx grid issues */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "52px repeat(7, 1fr)",
-            rowGap: "6px",
+            gridTemplateColumns: "42px repeat(7, minmax(0, 1fr))",
+            rowGap: "5px",
             columnGap: "4px",
           }}
         >
-          {/* Day headers */}
-          <div /> {/* empty top-left corner */}
-          {days.map((d) => (
+          <div />
+          {interviews.days.map((d) => (
             <div
               key={d}
               style={{
@@ -72,8 +42,7 @@ export default function InterviewHeatmap() {
             </div>
           ))}
 
-          {/* Time rows */}
-          {grid.map(({ label, cells }) => (
+          {interviews.slots.map(({ label, counts }) => (
             <Fragment key={label}>
               <div
                 style={{
@@ -85,27 +54,14 @@ export default function InterviewHeatmap() {
               >
                 {label}
               </div>
-              {cells.map((occupied, i) => (
-                <div
-                  key={i}
-                  style={{
-                    height: 20,
-                    borderRadius: 4,
-                    backgroundColor: occupied ? "#FB923C" : "#FEE9D7",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = occupied
-                      ? "#EA7315"
-                      : "#FDDCBC")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = occupied
-                      ? "#FB923C"
-                      : "#FEE9D7")
-                  }
-                />
+              {counts.map((count, i) => (
+                <Tooltip key={`${label}-${interviews.days[i]}`} title={`${count} interview${count === 1 ? "" : "s"} · ${interviews.days[i]} at ${label}`} arrow>
+                  <Box
+                    role="img"
+                    aria-label={`${count} interviews, ${interviews.days[i]} at ${label}`}
+                    sx={{ height: 18, borderRadius: 1, bgcolor: getCellColor(count), transition: "transform .15s ease, box-shadow .15s ease", "&:hover": { transform: "scaleY(1.16)", boxShadow: "0 2px 5px rgba(16,24,40,.14)" } }}
+                  />
+                </Tooltip>
               ))}
             </Fragment>
           ))}

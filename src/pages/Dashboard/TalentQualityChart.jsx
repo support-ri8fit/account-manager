@@ -1,35 +1,31 @@
 import { Bar } from "react-chartjs-2";
 import { Card, CardContent, Typography, Box } from "@mui/material";
+import dashboardData from "./dashboardData";
 
-const data = {
-  labels: [
-    "Jan","Feb","Mar","Apr","May","Jun",
-    "Jul","Aug","Sep","Oct","Nov","Dec"
-  ],
-  datasets: [
-    {
-      label: "Matched",
-      data: [90,65,35,85,70,90,35,45,75,55,80,50],
-      backgroundColor: "#FDBA74",
-      borderRadius: 6,
-    },
-    {
-      label: "Hired",
-      data: [15,35,10,15,40,15,10,25,70,5,45,15],
-      backgroundColor: "#F97316",
-      borderRadius: 6,
-    },
-  ],
-};
-
-const options = {
+const chartOptions = {
   maintainAspectRatio: false,
   responsive: true,
+  plugins: {
+    legend: { position: "top", align: "end", labels: { usePointStyle: true, pointStyle: "circle", boxWidth: 8, padding: 14, color: "#667085", font: { size: 10 } } },
+    tooltip: { callbacks: { label: (context) => ` ${context.dataset.label}: ${context.parsed.y} candidates` } },
+  },
+  scales: {
+    x: { grid: { display: false }, ticks: { color: "#667085", font: { size: 10 } } },
+    y: { beginAtZero: true, ticks: { precision: 0, color: "#667085", font: { size: 10 } }, title: { display: true, text: "Candidates", color: "#667085", font: { size: 10 } }, grid: { color: "#F2F4F7" } },
+  },
 };
 
-export default function TalentQualityChart() {
+export default function TalentQualityChart({ talent = dashboardData.talent }) {
+  const data = {
+    labels: talent.labels,
+    datasets: [
+      { label: "Matched", data: talent.matched, backgroundColor: "#FDBA74", borderRadius: 5, maxBarThickness: 18 },
+      { label: "Hired", data: talent.hired, backgroundColor: "#F97316", borderRadius: 5, maxBarThickness: 18 },
+    ],
+  };
+
   return (
-    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column", border: "1px solid #EAECF0", borderRadius: 3, boxShadow: "0 2px 8px rgba(16,24,40,.04)" }}>
       <CardContent
         sx={{
           flex: 1,
@@ -37,12 +33,13 @@ export default function TalentQualityChart() {
           flexDirection: "column",
         }}
       >
-        <Typography fontWeight={600} mb={1}>
-          Talent Quality Chart
+        <Typography fontWeight={700} fontSize={14} color="#172033">
+          Candidate pipeline trend
         </Typography>
+        <Typography fontSize={10.5} color="#667085" sx={{ mb: 0.5 }}>Monthly matched and hired candidates · sample period Feb 2025–Jan 2026</Typography>
 
         <Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
-          <Bar data={data} options={options} />
+          <Bar data={data} options={chartOptions} />
         </Box>
       </CardContent>
     </Card>

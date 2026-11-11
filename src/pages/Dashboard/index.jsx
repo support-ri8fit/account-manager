@@ -8,44 +8,39 @@ import StatsCards from "./StatsCards";
 import TalentQualityChart from "./TalentQualityChart";
 import HiringRisk from "./HiringRisk";
 import KpiCards from "./Kpi.jsx";
+import dashboardData from "./dashboardData";
 
 export default function AmDashboard() {
-  const stats = [
-    { title: "Avg Time to Hire", value: "8888838", color: "#FB923C" },
-    { title: "Avg Time to Fill", value: "7373737373", color: "#1D4ED8" },
-    { title: "Total Hiring Cost (Org)", value: "82282828", color: "#059669" },
-    { title: "Cost per Hire", value: "33333333", color: "#2563EB" },
-  ];
   return (
     <Box p={1}>
-      <Header />
+      <Header periodLabel={dashboardData.periodLabel} />
       {/* <AlertBanner /> */}
 
       <Grid container spacing={2} mt={1}>
         <Grid size={{ xs: 12, md: 4 }}>
-          <RecentlyHired />
+          <RecentlyHired hires={dashboardData.recentHires} />
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <ExperienceDonut />
+          <ExperienceDonut experience={dashboardData.experience} />
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <InterviewHeatmap />
+          <InterviewHeatmap interviews={dashboardData.interviews} />
         </Grid>
       </Grid>
       <Grid container size={{ xs: 12, md: 12 }} sx={{mt:2}}>
-        <StatsCards statusCards={stats} />
+        <StatsCards statusCards={dashboardData.summary} />
       </Grid>
       <Grid container size={{ xs: 12, md: 12 }} sx={{mt:2}}>
-        <KpiCards />
+        <KpiCards cards={dashboardData.jobs} />
       </Grid>
       <Grid container sx={{display:'flex',justifyContent:"space-between",gap:1,mt:2}}>
         <Grid size={{ xs: 12, md: 5.9 }}>
-          <TalentQualityChart />
+          <TalentQualityChart talent={dashboardData.talent} />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <HiringRisk />
+          <HiringRisk risk={dashboardData.hiringRisk} />
         </Grid>
       </Grid>
     </Box>

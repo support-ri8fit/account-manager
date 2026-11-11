@@ -22,6 +22,8 @@ import {
   CircularProgress,
   Tooltip,
   Button,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import {
   Dashboard,
@@ -41,6 +43,7 @@ import {
   AccessTimeOutlined,
   CheckCircle,
   TaskAlt,
+  AssignmentOutlined,
   MoveToInboxOutlined,
 } from "@mui/icons-material";
 import NavigateNextIcon from "@mui/icons-material/NavigateNextRounded";
@@ -79,14 +82,9 @@ const sidebarSections = [
         icon: <Business />,
         path: "/account-manager/organization",
       },
-      {
-        label: "User Management",
-        icon: <ManageAccountsOutlined />,
-        path: "/account-manager/user-management",
-      },
-      {
+     {
         label: "Requests",
-        icon: <MoveToInboxOutlined />,
+        icon: <AssignmentOutlined />,
         path: "/account-manager/requests",
       },
       {
@@ -110,6 +108,11 @@ const sidebarSections = [
         icon: <Work />,
         path: "/account-manager/settings",
         disabled: false,
+      },
+      {
+        label: "User Management",
+        icon: <ManageAccountsOutlined />,
+        path: "/account-manager/user-management",
       },
     ],
   },
@@ -1154,8 +1157,9 @@ function TopBarBreadcrumb() {
    DrawerLayout
 ───────────────────────────────────────────── */
 const DrawerLayout = () => {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [accountMenuAnchor, setAccountMenuAnchor] = useState(null);
   const [triggerLogout] = useLazyLogoutQuery();
   const navigate = useNavigate();
   const userData = getItem("am_user");
@@ -1320,33 +1324,6 @@ const DrawerLayout = () => {
           ))}
         </Box>
 
-        <Box sx={{ p: 2, borderTop: "1px solid #f0f0e8" }}>
-          <ListItemButton
-            onClick={handleLogout}
-            sx={{
-              borderRadius: "8px",
-              color: "#e03",
-              "&:hover": { backgroundColor: "#fef0f0" },
-            }}
-          >
-            <ListItemIcon
-              sx={{ minWidth: 0, mr: open ? 2 : "auto", color: "inherit" }}
-            >
-              <Logout />
-            </ListItemIcon>
-            {open && (
-              <ListItemText
-                primary="Logout"
-                sx={{
-                  "& .MuiTypography-root": {
-                    fontSize: "14px",
-                    fontWeight: 500,
-                  },
-                }}
-              />
-            )}
-          </ListItemButton>
-        </Box>
       </Drawer>
 
       {/* MAIN COLUMN */}
@@ -1395,17 +1372,46 @@ const DrawerLayout = () => {
               >
                 {userInfo?.name || "User"}
               </Typography>
-              <Avatar
-                sx={{
-                  bgcolor: "#ff5722",
-                  width: 32,
-                  height: 32,
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
+              <IconButton
+                size="small"
+                aria-label="Open account menu"
+                aria-controls={accountMenuAnchor ? "account-menu" : undefined}
+                aria-haspopup="true"
+                aria-expanded={accountMenuAnchor ? "true" : undefined}
+                onClick={(event) => setAccountMenuAnchor(event.currentTarget)}
+                sx={{ p: 0.25 }}
               >
-                {userInfo?.name ? userInfo.name.charAt(0).toUpperCase() : "U"}
-              </Avatar>
+                <Avatar
+                  sx={{
+                    bgcolor: "#ff5722",
+                    width: 32,
+                    height: 32,
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {userInfo?.name ? userInfo.name.charAt(0).toUpperCase() : "U"}
+                </Avatar>
+              </IconButton>
+              <Menu
+                id="account-menu"
+                anchorEl={accountMenuAnchor}
+                open={Boolean(accountMenuAnchor)}
+                onClose={() => setAccountMenuAnchor(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+              >
+                <MenuItem
+                  onClick={() => {
+                    setAccountMenuAnchor(null);
+                    handleLogout();
+                  }}
+                  sx={{ color: "#e03", gap: 1 }}
+                >
+                  <Logout fontSize="small" />
+                  Logout
+                </MenuItem>
+              </Menu>
             </Box>
           </Toolbar>
         </AppBar>

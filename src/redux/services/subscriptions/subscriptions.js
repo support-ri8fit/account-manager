@@ -48,10 +48,25 @@ export const subscriptionsApi = api.injectEndpoints({
       ],
     }),
     cancelOrganisationSubscription: builder.mutation({
-      query: (organisationId) => ({
-        url: `/subscriptions/account-manager/organisations/${organisationId}/cancel`,
-        method: "POST",
-      }),
+      queryFn: (request = {}, api, extraOptions, baseQuery) => {
+        const { organisation_id, cancel_type } = request;
+        const isUuid = typeof organisation_id === "string"
+          && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(organisation_id.trim());
+        if (!isUuid
+          || !["trial_cancel", "payg_cancel"].includes(cancel_type)) {
+          return {
+            error: {
+              status: "CUSTOM_ERROR",
+              error: "Cancellation requires a valid organisation_id and cancel_type.",
+            },
+          };
+        }
+        return baseQuery({
+          url: `/subscriptions/account-manager/organisations/${encodeURIComponent(organisation_id.trim())}/cancel`,
+          method: "POST",
+          params: { cancel_type },
+        });
+      },
       invalidatesTags: ["Subscriptions"],
     }),
     resumeOrganisationSubscription: builder.mutation({

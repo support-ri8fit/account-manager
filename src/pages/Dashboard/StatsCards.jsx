@@ -1,4 +1,4 @@
-import { Grid, Card, CardContent, Typography } from "@mui/material";
+import { Grid, Card, CardContent, Typography, Box } from "@mui/material";
 
 export default function StatsCards({ statusCards = [] }) {
   return (
@@ -15,19 +15,26 @@ export default function StatsCards({ statusCards = [] }) {
         >
           <Card
             sx={{
-              bgcolor: s.color,
-              color: "#fff",
+              position: "relative",
+              overflow: "hidden",
+              bgcolor: "#fff",
+              color: "#172033",
+              border: "1px solid #EAECF0",
+              borderTop: `3px solid ${s.color}`,
+              borderRadius: 2.5,
               flex: 1,        // 🔑 stretch horizontally
               width: "100%", // 🔑 required
               height: "100%",
               minWidth: 0,    // 🔑 prevents overflow
+              boxShadow: "0 2px 8px rgba(16,24,40,.035)",
             }}
           >
-            <CardContent>
-              <Typography fontSize={13} noWrap>
+            <CardContent sx={{ p: 1.8, "&:last-child": { pb: 1.8 } }}>
+              <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: s.color, mb: 0.8 }} />
+              <Typography fontSize={11.5} color="#667085" fontWeight={600} noWrap>
                 {s.title}
               </Typography>
-              <Typography fontWeight={700} fontSize={18} noWrap>
+              <Typography fontWeight={750} fontSize={20} color="#172033" noWrap sx={{ mt: 0.35, letterSpacing: "-.35px" }}>
                 {s.value}
               </Typography>
             </CardContent>

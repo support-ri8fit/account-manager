@@ -1,21 +1,12 @@
-import { Card, CardContent, Typography, Button } from "@mui/material";
+import { Avatar, Card, CardContent, Chip, Typography } from "@mui/material";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import dashboardData from "./dashboardData";
 
-const data = [
-  { name: "Praful Krshetty", country: "USA", role: "Stats Programmer", salary: "₹74000", img: "https://randomuser.me/api/portraits/men/32.jpg" },
-  { name: "Rohith Janeee", country: "UAE", role: "Stats Programmer", salary: "₹74000", img: "https://randomuser.me/api/portraits/men/44.jpg" },
-  { name: "Rishabh Jain", country: "Germany", role: "Stats Programmer", salary: "₹74000", img: "https://randomuser.me/api/portraits/men/55.jpg" },
-  { name: "Sai Karthik Kommu", country: "Belgium", role: "Stats Programmer", salary: "₹74000", img: "https://randomuser.me/api/portraits/women/68.jpg" },
-  { name: "Dummy Data", country: "Greenland", role: "Stats Programmer", salary: "₹74000", img: "https://randomuser.me/api/portraits/men/76.jpg" },
-];
-
-export default function RecentlyHired() {
+export default function RecentlyHired({ hires = dashboardData.recentHires }) {
   return (
-    <Card sx={{ borderRadius: 3, boxShadow: "0 1px 6px rgba(0,0,0,0.08)", height: "100%" }}>
-      <CardContent sx={{ pt: 2, pb: 2 }}>
-
-        {/* Header — native div for reliable flex */}
+    <Card sx={{ borderRadius: 3, border: "1px solid #EAECF0", boxShadow: "0 2px 8px rgba(16,24,40,.04)", height: "100%" }}>
+      <CardContent sx={{ pt: 1.75, pb: 1.5 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{
@@ -25,48 +16,40 @@ export default function RecentlyHired() {
             }}>
               <PeopleAltOutlinedIcon sx={{ fontSize: 18, color: "#FB923C" }} />
             </div>
-            <span style={{ fontWeight: 700, fontSize: 15 }}>Latestly hired</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Recent hires</div>
+              <div style={{ color: "#667085", fontSize: 10.5, marginTop: 1 }}>Illustrative sample records</div>
+            </div>
           </div>
-          <button style={{
-            background: "none", border: "none", cursor: "pointer",
-            fontSize: 13, color: "#374151", textDecoration: "underline",
-          }}>
-            View All
-          </button>
+          <Chip label={`${hires.length} hires`} size="small" sx={{ height: 24, bgcolor: "#FFF4EF", color: "#C2410C", fontWeight: 700, fontSize: 10.5 }} />
         </div>
 
-        {/* List */}
-        {data.map((item, i) => (
-          <div key={i}>
-            {/* Row — native flex */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
-              {/* Rounded photo */}
-              <img
-                src={item.img}
-                alt={item.name}
-                style={{ width: 46, height: 46, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
-              />
+        {hires.map((item, i) => (
+          <div key={`${item.name}-${item.hired}`}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
+              <Avatar sx={{ width: 38, height: 38, borderRadius: 2, bgcolor: ["#E0F2FE", "#FCE7F3", "#EDE9FE", "#DCFCE7", "#FEF3C7"][i % 5], color: ["#0369A1", "#BE185D", "#6D28D9", "#15803D", "#B45309"][i % 5], fontWeight: 700, fontSize: 13 }}>
+                {item.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}
+              </Avatar>
 
-              {/* Name + location */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <div style={{ fontWeight: 650, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#172033" }}>
                   {item.name}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 3 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
                   <LocationOnOutlinedIcon sx={{ fontSize: 13, color: "#9CA3AF" }} />
-                  <span style={{ fontSize: 12, color: "#6B7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {item.country} • {item.role}
+                  <span style={{ fontSize: 10.5, color: "#667085", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {item.country} · {item.role}
                   </span>
                 </div>
               </div>
 
-              {/* Salary */}
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", whiteSpace: "nowrap" }}>
-                {item.salary}
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 11.5, color: "#344054", whiteSpace: "nowrap" }}>{item.salary}</div>
+                <div style={{ fontSize: 10, color: "#98A2B3", marginTop: 2 }}>{item.hired}</div>
               </div>
             </div>
 
-            {i < data.length - 1 && (
+            {i < hires.length - 1 && (
               <div style={{ height: 1, backgroundColor: "#F3F4F6" }} />
             )}
           </div>

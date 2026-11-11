@@ -12,13 +12,14 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Stack,
   Tab,
   Tabs,
   TextField,
   Typography,
 } from "@mui/material";
-import { BusinessOutlined, Check, Close, EventOutlined, GroupsOutlined } from "@mui/icons-material";
+import { BusinessOutlined, Check, Close, EventOutlined, GroupsOutlined, RefreshRounded } from "@mui/icons-material";
 import DemoRequests from "../DemoRequests";
 import CandidateAssignmentDialog from "./CandidateAssignmentDialog";
 import { useGetUpgradeRequestsQuery, useReviewUpgradeRequestMutation } from "../../redux/services/subscriptions/subscriptions";
@@ -41,6 +42,14 @@ const formatDate = (value) => {
 };
 
 const formatStatus = (status = "pending") => status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+const formatRequestType = (requestType) => {
+  if (!requestType) return "—";
+  return String(requestType)
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+};
 
 function SubscriptionRequests() {
   const [status, setStatus] = useState("pending");
@@ -66,27 +75,52 @@ function SubscriptionRequests() {
   };
 
   return (
-    <Box sx={{ maxWidth: 1120, mx: "auto" }}>
-      <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between" gap={2} sx={{ mb: 2.5 }}>
-        {/* <Box>
-          <Typography fontSize={{ xs: 19, sm: 21 }} fontWeight={750} color="#101828" letterSpacing="-0.35px">
-            Subscription requests
-          </Typography>
-          <Typography fontSize={13} color="#667085" sx={{ mt: 0.45 }}>
-            Review incoming plan changes by organisation and request date.
-          </Typography>
-        </Box> */}
+    <Box sx={{ maxWidth: 1220, mx: "auto" }}>
+      <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between" gap={2.25} sx={{ mb: 2.75 }}>
+        <Box>
+          <Stack direction="row" alignItems="center" spacing={1.25}>
+            <Box sx={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 2.5, color: ACCENT, bgcolor: "#FFF1EB", border: "1px solid #FFE0D4" }}>
+              <GroupsOutlined />
+            </Box>
+            <Box>
+              <Typography fontSize={{ xs: 19, sm: 21 }} fontWeight={750} color="#101828" letterSpacing="-0.35px">
+                Subscription requests
+              </Typography>
+              <Typography fontSize={12.5} color="#667085" sx={{ mt: 0.2 }}>
+                Review plan changes submitted by organisations.
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Chip
+            label={`${requests.length} ${requests.length === 1 ? "request" : "requests"}`}
+            size="small"
+            sx={{ height: 30, px: 0.35, bgcolor: "#F2F4F7", color: "#475467", fontWeight: 700, borderRadius: 2 }}
+          />
+          <IconButton
+            aria-label="Refresh subscription requests"
+            onClick={refetch}
+            disabled={isLoading || isFetching}
+            sx={{ width: 34, height: 34, border: "1px solid #EAECF0", color: "#667085", bgcolor: "#fff", "&:hover": { bgcolor: "#F9FAFB", color: ACCENT } }}
+          >
+            <RefreshRounded fontSize="small" />
+          </IconButton>
+        </Stack>
+      </Stack>
+
+      <Box sx={{ display: "inline-flex", p: 0.45, mb: 2.25, bgcolor: "#F2F4F7", border: "1px solid #EAECF0", borderRadius: 2.5 }}>
         <Tabs
           value={status}
           onChange={(_, value) => setStatus(value)}
           variant="scrollable"
           allowScrollButtonsMobile
           aria-label="Filter subscription requests by status"
-          sx={{ alignSelf: { xs: "flex-start", sm: "center" }, minHeight: 42, bgcolor: "#F2F4F7", borderRadius: 2, p: 0.4, "& .MuiTabs-indicator": { display: "none" }, "& .MuiTab-root": { minHeight: 34, minWidth: 88, textTransform: "capitalize", fontSize: 12, fontWeight: 600, px: 1.5, borderRadius: 1.5, color: "#667085" }, "& .Mui-selected": { bgcolor: "#fff", color: `${ACCENT} !important`, boxShadow: "0 1px 3px rgba(16,24,40,.12)" } }}
+          sx={{ minHeight: 38, "& .MuiTabs-indicator": { display: "none" }, "& .MuiTab-root": { minHeight: 36, minWidth: 90, textTransform: "none", fontSize: 12.5, fontWeight: 650, px: 1.7, borderRadius: 1.75, color: "#667085", transition: "all .18s ease" }, "& .Mui-selected": { bgcolor: "#fff", color: `${ACCENT} !important`, boxShadow: "0 1px 3px rgba(16,24,40,.12)" } }}
         >
           {STATUS_OPTIONS.map((option) => <Tab key={option} value={option} label={formatStatus(option)} />)}
         </Tabs>
-      </Stack>
+      </Box>
 
       {isError && <Alert severity="error" action={<Button color="inherit" size="small" onClick={refetch}>Retry</Button>} sx={{ mb: 2 }}>{error?.data?.message ?? "Unable to load subscription requests."}</Alert>}
       {reviewError && <Alert severity="error" sx={{ mb: 2 }}>{reviewError?.data?.message ?? "Unable to update this request. Please try again."}</Alert>}
@@ -108,44 +142,50 @@ function SubscriptionRequests() {
             <Card
               key={request.request_id ?? request.id}
               variant="outlined"
-              sx={{ borderColor: "#EAECF0", borderRadius: 2.5, boxShadow: "0 1px 3px rgba(16,24,40,.035)", transition: "box-shadow .18s ease, border-color .18s ease, transform .18s ease", "&:hover": { borderColor: "#F5B49E", boxShadow: "0 8px 20px rgba(16,24,40,.07)", transform: "translateY(-1px)" } }}
+              sx={{ position: "relative", overflow: "hidden", borderColor: "#EAECF0", borderRadius: 3, boxShadow: "0 2px 8px rgba(16,24,40,.035)", transition: "box-shadow .2s ease, border-color .2s ease, transform .2s ease", "&::before": { content: '""', position: "absolute", inset: "0 auto 0 0", width: 3, bgcolor: request.status === "pending" ? ACCENT : "#D0D5DD" }, "&:hover": { borderColor: "#F5B49E", boxShadow: "0 10px 24px rgba(16,24,40,.075)", transform: "translateY(-2px)" } }}
             >
-              <CardContent sx={{ p: { xs: 1.75, sm: 2.25 }, "&:last-child": { pb: { xs: 1.75, sm: 2.25 } } }}>
-                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1fr) auto auto" }, alignItems: "center", gap: { xs: 1.75, sm: 2.5 } }}>
-                  <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0 }}>
-                    <Box sx={{ width: 44, height: 44, display: "grid", placeItems: "center", flexShrink: 0, borderRadius: 2.25, bgcolor: "#FFF1EB", color: ACCENT }}>
-                      <BusinessOutlined fontSize="small" />
+              <CardContent sx={{ p: { xs: 2, sm: 2.5 }, "&:last-child": { pb: { xs: 2, sm: 2.5 } } }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1fr) auto" }, alignItems: "center", gap: { xs: 2, sm: 3 } }}>
+                  <Stack direction="row" alignItems="flex-start" spacing={1.75} sx={{ minWidth: 0 }}>
+                    <Box sx={{ width: 48, height: 48, display: "grid", placeItems: "center", flexShrink: 0, borderRadius: 2.5, bgcolor: "#FFF4EF", color: ACCENT, border: "1px solid #FFE4D9" }}>
+                      <BusinessOutlined />
                     </Box>
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography fontSize={15} fontWeight={700} color="#172033" sx={{ overflowWrap: "anywhere" }}>
+                      <Typography fontSize={15.5} fontWeight={750} color="#172033" sx={{ overflowWrap: "anywhere", letterSpacing: "-.15px" }}>
                         {request.organisation_name || `Organisation ${request.organisation_id || ""}`}
                       </Typography>
-                      <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mt: 0.55 }}>
+                      <Stack direction="row" alignItems="center" spacing={0.65} sx={{ mt: 0.65 }}>
                         <EventOutlined sx={{ fontSize: 15, color: "#98A2B3" }} />
                         <Typography fontSize={12} color="#667085" fontWeight={500}>
                           {formatDate(request.requested_at)}
                         </Typography>
                       </Stack>
+                      <Chip
+                        size="small"
+                        label={`Request type · ${formatRequestType(request.request_type)}`}
+                        sx={{ mt: 1, height: 25, maxWidth: "100%", bgcolor: "#F8FAFC", color: "#475467", border: "1px solid #EAECF0", fontSize: 11.5, fontWeight: 600, "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" } }}
+                      />
                     </Box>
                   </Stack>
 
-                  <Chip
-                    size="small"
-                    label={formatStatus(request.status)}
-                    sx={{ justifySelf: { xs: "start", sm: "center" }, minWidth: 88, height: 28, fontWeight: 700, border: `1px solid ${statusColors[request.status]?.border || "#EAECF0"}`, color: statusColors[request.status]?.color || "#475467", bgcolor: statusColors[request.status]?.background || "#F2F4F7", borderRadius: 2 }}
-                  />
-
-                  <Stack direction="row" spacing={1} justifyContent={{ xs: "flex-start", sm: "flex-end" }}>
+                  <Stack direction={{ xs: "row", sm: "column", md: "row" }} alignItems={{ xs: "center", sm: "flex-end", md: "center" }} spacing={1.1} justifyContent={{ xs: "space-between", sm: "flex-start", md: "flex-end" }}>
+                    <Chip
+                      size="small"
+                      label={formatStatus(request.status)}
+                      sx={{ minWidth: 88, height: 28, fontWeight: 700, border: `1px solid ${statusColors[request.status]?.border || "#EAECF0"}`, color: statusColors[request.status]?.color || "#475467", bgcolor: statusColors[request.status]?.background || "#F2F4F7", borderRadius: 2 }}
+                    />
+                    <Stack direction="row" spacing={1}>
                     {request.status === "pending" && (
                       <>
-                        <Button size="small" variant="outlined" color="error" startIcon={<Close />} disabled={isReviewing} onClick={() => { setRequestToReject(request); setRejectionReason(""); }} sx={{ minHeight: 38, borderRadius: 2, px: 1.5, fontWeight: 650, textTransform: "none" }}>
+                        <Button size="small" variant="outlined" color="error" startIcon={<Close />} disabled={isReviewing} onClick={() => { setRequestToReject(request); setRejectionReason(""); }} sx={{ minHeight: 38, borderRadius: 2, px: 1.6, fontWeight: 650, textTransform: "none", borderColor: "#FDA29B", bgcolor: "#fff", "&:hover": { bgcolor: "#FEF3F2", borderColor: "#F97066" } }}>
                           Reject
                         </Button>
-                        <Button size="small" variant="contained" startIcon={isReviewing ? <CircularProgress size={15} color="inherit" /> : <Check />} disabled={isReviewing} onClick={() => handleReview(request.request_id ?? request.id, "approve")} sx={{ minHeight: 38, bgcolor: ACCENT, borderRadius: 2, px: 1.75, fontWeight: 700, textTransform: "none", boxShadow: "none", "&:hover": { bgcolor: "#E64A19", boxShadow: "none" } }}>
+                        <Button size="small" variant="contained" startIcon={isReviewing ? <CircularProgress size={15} color="inherit" /> : <Check />} disabled={isReviewing} onClick={() => handleReview(request.request_id ?? request.id, "approve")} sx={{ minHeight: 38, bgcolor: ACCENT, borderRadius: 2, px: 1.75, fontWeight: 700, textTransform: "none", boxShadow: "0 3px 8px rgba(255,87,34,.18)", "&:hover": { bgcolor: "#E64A19", boxShadow: "0 5px 12px rgba(255,87,34,.24)" } }}>
                           {isReviewing ? "Approving..." : "Approve"}
                         </Button>
                       </>
                     )}
+                    </Stack>
                   </Stack>
                 </Box>
               </CardContent>
@@ -324,27 +364,29 @@ export default function RequestsPage() {
   };
 
   return (
-    <Box sx={{ minHeight: "100%", bgcolor: "#FCFCFD", p: { xs: 1.25, sm:1.5 } }}>
-      {/* <Box sx={{ mb: 2.25 }}>
-        <Typography fontSize={24} fontWeight={750} color="#101828" letterSpacing="-0.4px">Requests</Typography>
-        <Typography fontSize={13} color="#667085" sx={{ mt: 0.4 }}>Manage incoming demo, subscription, and hiring requests.</Typography>
+    <Box sx={{ minHeight: "100%", background: "radial-gradient(ellipse at 12% 0%, #FFF4EF 0%, transparent 32%), #F8FAFC", p: { xs: 1.5, sm: 2.5, lg: 1 } }}>
+      <Box sx={{ width: "100%", maxWidth: 1480, mx: "auto" }}>
+      {/* <Box sx={{ mb: 2.5, px: { xs: 0.25, sm: 0.5 } }}>
+        <Typography fontSize={{ xs: 23, sm: 26 }} fontWeight={780} color="#101828" letterSpacing="-0.65px">Requests</Typography>
+        <Typography fontSize={13.5} color="#667085" sx={{ mt: 0.55 }}>Manage incoming demo, subscription, and hiring requests.</Typography>
       </Box> */}
-      <Card variant="outlined" sx={{ borderColor: "#EAECF0", borderRadius: 2.5, bgcolor: "#fff", overflow: "hidden" }}>
+      <Card variant="outlined" sx={{ borderColor: "#E6EAF0", borderRadius: 3.5, bgcolor: "rgba(255,255,255,.96)", overflow: "hidden", boxShadow: "0 12px 32px rgba(16,24,40,.055)" }}>
         <Tabs
           value={selectedTab}
           onChange={handleTabChange}
           variant="scrollable"
           allowScrollButtonsMobile
-          sx={{ px: { xs: 1, sm: 2 }, borderBottom: "1px solid #EAECF0", "& .MuiTabs-indicator": { height: 2.5, bgcolor: ACCENT }, "& .MuiTab-root": { minHeight: 54, textTransform: "none", fontWeight: 600, color: "#667085", fontSize: 13 }, "& .Mui-selected": { color: `${ACCENT} !important` } }}
+          sx={{ px: { xs: 1, sm: 2.5 }, borderBottom: "1px solid #EAECF0", bgcolor: "#fff", "& .MuiTabs-indicator": { height: 3, borderRadius: "3px 3px 0 0", bgcolor: ACCENT }, "& .MuiTab-root": { minHeight: 62, textTransform: "none", fontWeight: 650, color: "#667085", fontSize: 13.5, px: { xs: 1.5, sm: 2.5 }, transition: "color .18s ease, background-color .18s ease", "& .MuiTab-iconWrapper": { mr: 1, mb: "0 !important" } }, "& .Mui-selected": { color: `${ACCENT} !important` }, "& .MuiTab-root:hover": { color: ACCENT, bgcolor: "#FFFAF8" } }}
         >
           {REQUEST_TABS.map((tab) => <Tab key={tab.value} value={tab.value} icon={tab.icon} iconPosition="start" label={tab.label} />)}
         </Tabs>
-        <Box sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+        <Box sx={{ p: { xs: 1.75, sm: 3, lg: 3.5 } }}>
           {selectedTab === "demo" && <DemoRequests />}
           {selectedTab === "subscription" && <SubscriptionRequests />}
           {selectedTab === "hiring" && <HiringRequests />}
         </Box>
       </Card>
+      </Box>
     </Box>
   );
 }

@@ -37,16 +37,89 @@ const formatPlanName = (value) => String(value || "").toLowerCase() === "payg"
   ? "Premium"
   : formatLabel(value);
 const isCancelledSubscription = (subscription) =>
-  [subscription.subscription_status, subscription.status]
+  subscription.is_cancelled === true || [subscription.subscription_status, subscription.status]
     .some((status) => String(status || "").toLowerCase() === "cancelled");
+const getOrganisationId = (subscription) => subscription?.organisation_id
+  ?? subscription?.organization_id
+  ?? subscription?.organisationId
+  ?? subscription?.organizationId
+  ?? subscription?.organisation?.organisation_id
+  ?? subscription?.organisation?.id
+  ?? subscription?.organization?.organisation_id
+  ?? subscription?.organization?.id;
+const isValidOrganisationId = (value) => typeof value === "string"
+  && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+const isActiveSubscription = (subscription) => {
+  const status = String(subscription.subscription_status || subscription.status || "").toLowerCase();
+  return subscription.is_active ?? (status === "active" || status.startsWith("active_"));
+};
 const isTrialSubscription = (subscription) =>
   subscription.is_trial === true || String(subscription.subscription_type || "").toLowerCase() === "trial";
+const getCancelType = (subscription) => isTrialSubscription(subscription) ? "trial_cancel" : "payg_cancel";
+const isExpiredTrial = (subscription) => {
+  if (!isTrialSubscription(subscription)) return false;
+  const status = String(subscription.subscription_status || subscription.status || "").toLowerCase();
+  const daysRemaining = Number(subscription.trial_days_remaining);
+  const trialEnd = subscription.trial_ends_at ? new Date(subscription.trial_ends_at).getTime() : NaN;
+  return subscription.is_trial_expired === true || subscription.trial_expired === true
+    || ["expired", "trial_expired"].includes(status)
+    || (subscription.trial_days_remaining !== null && subscription.trial_days_remaining !== undefined
+      && Number.isFinite(daysRemaining) && daysRemaining <= 0)
+    || (Number.isFinite(trialEnd) && trialEnd <= Date.now());
+};
+const getTrialDaysRemaining = (subscription) => {
+  const daysRemaining = Number(subscription.trial_days_remaining);
+  if (subscription.trial_days_remaining !== null && subscription.trial_days_remaining !== undefined
+    && Number.isFinite(daysRemaining)) return daysRemaining;
+  const trialEnd = subscription.trial_ends_at ? new Date(subscription.trial_ends_at).getTime() : NaN;
+  return Number.isFinite(trialEnd) ? Math.max(0, Math.ceil((trialEnd - Date.now()) / 86400000)) : null;
+};
 const isPaygSubscription = (subscription) =>
   subscription.is_payg === true || String(subscription.subscription_type || "").toLowerCase() === "payg";
 const displayLimit = (value) => value === null || value === undefined ? "Unlimited" : value;
 const displayPrice = (value) => value === null || value === undefined
   ? "—"
   : new Intl.NumberFormat("en-IN").format(value);
+const getApiErrorMessage = (error, fallback) => {
+  const formatDetail = (detail, depth = 0) => {
+    if (depth > 5) return "";
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail)) {
+      const messages = detail.map((item) => formatDetail(item, depth + 1)).filter(Boolean);
+      return messages.length ? messages.join("; ") : "";
+    }
+    if (detail && typeof detail === "object") {
+      const message = typeof detail.msg === "string" ? detail.msg : typeof detail.message === "string" ? detail.message : "";
+      if (message) {
+        const location = Array.isArray(detail.loc) ? detail.loc.map(String).join(".") : "";
+        return location ? `${location}: ${message}` : message;
+      }
+      for (const key of ["detail", "error", "errors", "message", "data", "body", "payload", "response", "originalError", "cause"]) {
+        if (detail[key] !== undefined) {
+          const nestedMessage = formatDetail(detail[key], depth + 1);
+          if (nestedMessage) return nestedMessage;
+        }
+      }
+    }
+    return "";
+  };
+  const responseMessage = formatDetail(error?.data)
+    || formatDetail(error?.data?.message)
+    || formatDetail(error?.data?.detail)
+    || formatDetail(error?.error)
+    || formatDetail(error?.msg)
+    || formatDetail(error?.message)
+    || (error?.status || error?.originalStatus
+      ? `Request failed (${error.status ?? error.originalStatus}). ${String(error?.error ?? "No error details were returned.")}`
+      : "")
+    || fallback;
+  if (typeof responseMessage === "string") return responseMessage;
+  try {
+    return error?.data ? JSON.stringify(error.data) : String(fallback);
+  } catch {
+    return String(fallback);
+  }
+};
 
 const activationPayload = (subscription) => ({
   organisation_id: subscription.organisation_id,
@@ -67,7 +140,7 @@ const activationPayload = (subscription) => ({
 
 const StatusChip = ({ subscription }) => {
   const status = subscription.subscription_status || subscription.status;
-  const active = subscription.is_active ?? String(status || "").toLowerCase() === "active";
+  const active = isActiveSubscription(subscription);
   return (
     <Chip
       size="small"
@@ -147,22 +220,23 @@ const SubscriptionActions = ({ subscription, onUpgrade, onCancel, onReinitiate, 
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
-        {subscription.is_active && (
+        {isActiveSubscription(subscription) && (
           <MenuItem onClick={() => runAction(onViewUsage)}>View usage</MenuItem>
         )}
         <MenuItem onClick={() => runAction(onUpgrade)}>Upgrade plan</MenuItem>
-        {isTrialSubscription(subscription) && !isCancelledSubscription(subscription) && (
-          <MenuItem onClick={() => runAction(onExtendTrial)}>Extend trial</MenuItem>
-        )}
-        {isTrialSubscription(subscription) && !subscription.is_active && !isCancelledSubscription(subscription) && (
+        {isTrialSubscription(subscription) && isCancelledSubscription(subscription) && (
           <MenuItem onClick={() => runAction(onReinitiate)}>Reinitiate trial</MenuItem>
         )}
-        {isCancelledSubscription(subscription) && (
+        {isTrialSubscription(subscription) && !isCancelledSubscription(subscription)
+          && (isActiveSubscription(subscription) || isExpiredTrial(subscription)) && (
+          <MenuItem onClick={() => runAction(onExtendTrial)}>Extend trial</MenuItem>
+        )}
+        {isCancelledSubscription(subscription) && !isTrialSubscription(subscription) && (
           <MenuItem onClick={() => runAction(onResume)} sx={{ color: "#15803D" }}>
             Resume subscription
           </MenuItem>
         )}
-        {subscription.is_active && (
+        {isActiveSubscription(subscription) && !isCancelledSubscription(subscription) && (
           <MenuItem onClick={() => runAction(onCancel)} sx={{ color: "#DC2626" }}>
             {isTrialSubscription(subscription) ? "Cancel Trial" : "Cancel Subscription"}
           </MenuItem>
@@ -174,8 +248,9 @@ const SubscriptionActions = ({ subscription, onUpgrade, onCancel, onReinitiate, 
 
 const SubscriptionCard = ({ subscription, onActivate, onCancel, onReinitiate, onResume, onExtendTrial }) => {
   const isTrial = isTrialSubscription(subscription);
+  const trialDaysRemaining = isTrial ? getTrialDaysRemaining(subscription) : null;
   const dateLabel = isTrial ? "Trial ends" : "Premium started";
-  const dateValue = isTrial ? subscription.trial_ends_at : subscription.payg_started_at;
+  const dateValue = isTrial ? subscription.trial_ends_at : subscription.payg_started_at || subscription.started_at;
   return (
     <Card sx={{ borderRadius: "14px", border: "1px solid #E5E7EB", borderTop: `3px solid ${isTrial ? TRIAL_COLOR : PAYG_COLOR}`, boxShadow: "none", backgroundColor: "#fff" }}>
       <CardContent sx={{ p: 2.2 }}>
@@ -196,47 +271,37 @@ const SubscriptionCard = ({ subscription, onActivate, onCancel, onReinitiate, on
           {/* <Detail label="Billing day" value={subscription.billing_day ? "Day " + subscription.billing_day : "—"} /> */}
           {isPaygSubscription(subscription) && <Detail label="Price per user" value={displayPrice(subscription.pricing?.price_per_user)} />}
         </Box>
-        {isTrial && subscription.trial_days_remaining !== null && (
+        {isTrial && trialDaysRemaining !== null && (
           <Typography fontSize="12px" color={TRIAL_COLOR} fontWeight={600} sx={{ mt: 2 }}>
-            {subscription.trial_days_remaining} day{subscription.trial_days_remaining === 1 ? "" : "s"} remaining
+            {trialDaysRemaining} day{trialDaysRemaining === 1 ? "" : "s"} remaining
           </Typography>
         )}
-        {subscription.is_active ? (
-          <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", rowGap: 1 }}>
-            <Button size="small" variant="contained" onClick={() => onActivate(subscription)} sx={{ backgroundColor: PRIMARY_COLOR }}>
-              Upgrade Plan
-            </Button>
+        <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", rowGap: 1 }}>
+          <Button size="small" variant="contained" onClick={() => onActivate(subscription)} sx={{ backgroundColor: PRIMARY_COLOR }}>
+            Upgrade Plan
+          </Button>
+          {isActiveSubscription(subscription) && !isCancelledSubscription(subscription) && (
             <Button size="small" variant="outlined" color="error" onClick={() => onCancel(subscription)}>
               {isTrial ? "Cancel Trial" : "Cancel Subscription"}
             </Button>
-            {isTrial && !isCancelledSubscription(subscription) && (
-              <Button size="small" variant="outlined" onClick={() => onExtendTrial(subscription)} sx={{ color: TRIAL_COLOR, borderColor: TRIAL_COLOR }}>
-                Extend Trial
-              </Button>
-            )}
-          </Stack>
-        ) : (
-          <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", rowGap: 1 }}>
-            <Button size="small" variant="contained" onClick={() => onActivate(subscription)} sx={{ backgroundColor: PRIMARY_COLOR }}>
-              Upgrade Plan
+          )}
+          {isCancelledSubscription(subscription) && !isTrial && (
+            <Button size="small" variant="outlined" onClick={() => onResume(subscription)} sx={{ color: "#15803D", borderColor: "#15803D" }}>
+              Resume Subscription
             </Button>
-            {isCancelledSubscription(subscription) && (
-              <Button size="small" variant="outlined" onClick={() => onResume(subscription)} sx={{ color: "#15803D", borderColor: "#15803D" }}>
-                Resume Subscription
-              </Button>
-            )}
-            {isTrialSubscription(subscription) && !isCancelledSubscription(subscription) && (
-              <Button size="small" variant="outlined" onClick={() => onReinitiate(subscription)} sx={{ color: PRIMARY_COLOR, borderColor: PRIMARY_COLOR }}>
-                Reinitiate Trial
-              </Button>
-            )}
-            {isTrialSubscription(subscription) && !isCancelledSubscription(subscription) && (
-              <Button size="small" variant="outlined" onClick={() => onExtendTrial(subscription)} sx={{ color: TRIAL_COLOR, borderColor: TRIAL_COLOR }}>
-                Extend Trial
-              </Button>
-            )}
-          </Stack>
-        )}
+          )}
+          {isTrial && isCancelledSubscription(subscription) && (
+            <Button size="small" variant="outlined" onClick={() => onReinitiate(subscription)} sx={{ color: PRIMARY_COLOR, borderColor: PRIMARY_COLOR }}>
+              Reinitiate Trial
+            </Button>
+          )}
+          {isTrial && !isCancelledSubscription(subscription)
+            && (isActiveSubscription(subscription) || isExpiredTrial(subscription)) && (
+            <Button size="small" variant="outlined" onClick={() => onExtendTrial(subscription)} sx={{ color: TRIAL_COLOR, borderColor: TRIAL_COLOR }}>
+              Extend Trial
+            </Button>
+          )}
+        </Stack>
       </CardContent>
     </Card>
   );
@@ -312,7 +377,7 @@ const UpgradePaygDialog = ({ subscription, onClose }) => {
           ))}
         </Box>
         {error && <Typography color="error" fontSize="13px" sx={{ mt: 2 }}>
-          {error?.data?.message || "Unable to upgrade this organisation. Please try again."}
+          {getApiErrorMessage(error, "Unable to upgrade this organisation. Please try again.")}
         </Typography>}
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
@@ -330,6 +395,7 @@ const Subscriptions = () => {
   const [planTab, setPlanTab] = useState("trial");
   const [subscriptionToActivate, setSubscriptionToActivate] = useState(null);
   const [subscriptionToCancel, setSubscriptionToCancel] = useState(null);
+  const [cancelRequest, setCancelRequest] = useState(null);
   const [subscriptionToReinitiate, setSubscriptionToReinitiate] = useState(null);
   const [subscriptionToResume, setSubscriptionToResume] = useState(null);
   const [subscriptionToExtendTrial, setSubscriptionToExtendTrial] = useState(null);
@@ -346,7 +412,15 @@ const Subscriptions = () => {
   const { data: response, isLoading, isFetching, isError, error, refetch } =
     useGetOrganisationSubscriptionsQuery();
   const subscriptions = useMemo(
-    () => Array.isArray(response?.data) ? response.data : [],
+    () => {
+      const rows = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.data?.data) ? response.data.data : [];
+      return rows.map((subscription) => ({
+        ...subscription,
+        organisation_id: getOrganisationId(subscription),
+      }));
+    },
     [response],
   );
   const planSubscriptions = useMemo(
@@ -356,15 +430,32 @@ const Subscriptions = () => {
   const filteredSubscriptions = planSubscriptions;
   const trialCount = subscriptions.filter(isTrialSubscription).length;
   const paygCount = subscriptions.filter(isPaygSubscription).length;
+  const openCancelDialog = (subscription) => {
+    const organisationId = getOrganisationId(subscription);
+    setSubscriptionToCancel(subscription);
+    setCancelRequest(isValidOrganisationId(organisationId)
+      ? { organisation_id: organisationId.trim(), cancel_type: getCancelType(subscription) }
+      : null);
+    setCancelError("");
+  };
+  const closeCancelDialog = () => {
+    setSubscriptionToCancel(null);
+    setCancelRequest(null);
+    setCancelError("");
+  };
   const confirmCancellation = async () => {
-    if (!subscriptionToCancel?.organisation_id) return;
+    if (!cancelRequest) {
+      setCancelError("This subscription has no valid organisation ID. Refresh the subscriptions list and try again.");
+      return;
+    }
     setCancelError("");
     try {
-      await cancelOrganisationSubscription(subscriptionToCancel.organisation_id).unwrap();
+      await cancelOrganisationSubscription(cancelRequest).unwrap();
       setSubscriptionToCancel(null);
+      setCancelRequest(null);
       refetch();
     } catch (requestError) {
-      setCancelError(requestError?.data?.message || requestError?.data?.detail || "Unable to cancel this subscription. Please try again.");
+      setCancelError(getApiErrorMessage(requestError, "Cancellation failed, but the server returned no error details. Check the cancel request in the Network panel."));
     }
   };
   const confirmTrialReinitiation = async () => {
@@ -375,7 +466,7 @@ const Subscriptions = () => {
       setSubscriptionToReinitiate(null);
       refetch();
     } catch (requestError) {
-      setReinitiateError(requestError?.data?.message || requestError?.data?.detail || "Unable to reinitiate this trial. Please try again.");
+      setReinitiateError(getApiErrorMessage(requestError, "Unable to reinitiate this trial. Please try again."));
     }
   };
   const confirmResume = async () => {
@@ -386,7 +477,7 @@ const Subscriptions = () => {
       setSubscriptionToResume(null);
       refetch();
     } catch (requestError) {
-      setResumeError(requestError?.data?.message || requestError?.data?.detail || "Unable to resume this subscription. Please try again.");
+      setResumeError(getApiErrorMessage(requestError, "Unable to resume this subscription. Please try again."));
     }
   };
   const confirmTrialExtension = async () => {
@@ -406,7 +497,7 @@ const Subscriptions = () => {
       setExtensionDays("1");
       refetch();
     } catch (requestError) {
-      setExtensionError(requestError?.data?.message || requestError?.data?.detail || "Unable to extend this trial. Please try again.");
+      setExtensionError(getApiErrorMessage(requestError, "Unable to extend this trial. Please try again."));
     }
   };
   const openTrialExtension = (subscription) => {
@@ -419,7 +510,9 @@ const Subscriptions = () => {
     { accessorKey: "subscription_type", header: "Plan", size: 110, Cell: ({ row }) => <PlanChip subscription={row.original} /> },
     { accessorKey: "subscription_status", header: "Status", size: 145, Cell: ({ row }) => <StatusChip subscription={row.original} /> },
     { accessorKey: "started_at", header: "Started", size: 125, Cell: ({ cell }) => formatDate(cell.getValue()) },
-    { id: "trial_ends_at", header: "Trial ends", size: 125, accessorFn: (row) => row.trial_ends_at, Cell: ({ cell }) => formatDate(cell.getValue()) },
+    ...(planTab === "trial" ? [
+      { id: "trial_ends_at", header: "Trial ends", size: 125, accessorFn: (row) => row.trial_ends_at, Cell: ({ cell }) => formatDate(cell.getValue()) },
+    ] : []),
     // { accessorKey: "billing_day", header: "Billing Day", Cell: ({ cell }) => cell.getValue() ? "Day " + cell.getValue() : "—" },
     // { id: "max_users", header: "User Limit", accessorFn: (row) => row.limits?.max_users, Cell: ({ cell }) => displayLimit(cell.getValue()) },
     // { id: "price_per_user", header: "Price per User", accessorFn: (row) => row.pricing?.price_per_user, Cell: ({ cell }) => displayPrice(cell.getValue()) },
@@ -427,12 +520,12 @@ const Subscriptions = () => {
       subscription={row.original}
       onViewUsage={() => navigate("/account-manager/org/" + row.original.organisation_id, { state: { activeTab: 5 } })}
       onUpgrade={() => setSubscriptionToActivate(row.original)}
-      onCancel={() => { setCancelError(""); setSubscriptionToCancel(row.original); }}
+      onCancel={() => openCancelDialog(row.original)}
       onReinitiate={() => { setReinitiateError(""); setSubscriptionToReinitiate(row.original); }}
       onResume={() => { setResumeError(""); setSubscriptionToResume(row.original); }}
       onExtendTrial={() => openTrialExtension(row.original)}
     /> },
-  ], [navigate]);
+  ], [navigate, planTab]);
 
   if (isLoading) {
     return <Box sx={{ height: "calc(100vh - 68px)", display: "grid", placeItems: "center" }}><CircularProgress sx={{ color: PRIMARY_COLOR }} /></Box>;
@@ -441,7 +534,7 @@ const Subscriptions = () => {
     return (
       <Box sx={{ height: "calc(100vh - 68px)", display: "grid", placeItems: "center", textAlign: "center" }}>
         <Box>
-          <Typography color="#374151" fontWeight={600}>{error?.data?.message || "Unable to load subscriptions."}</Typography>
+          <Typography color="#374151" fontWeight={600}>{getApiErrorMessage(error, "Unable to load subscriptions.")}</Typography>
           <Button onClick={refetch} startIcon={<Replay />} sx={{ mt: 1, color: PRIMARY_COLOR }}>Try again</Button>
         </Box>
       </Box>
@@ -477,7 +570,7 @@ const Subscriptions = () => {
         ) : (
           <Box sx={{ height: "100%", overflowY: "auto", pr: 0.5 }}>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)", xl: "repeat(4, 1fr)" }, gap: 2 }}>
-              {filteredSubscriptions.map((subscription) => <SubscriptionCard key={subscription.organisation_id} subscription={subscription} onActivate={setSubscriptionToActivate} onCancel={(item) => { setCancelError(""); setSubscriptionToCancel(item); }} onReinitiate={(item) => { setReinitiateError(""); setSubscriptionToReinitiate(item); }} onResume={(item) => { setResumeError(""); setSubscriptionToResume(item); }} onExtendTrial={openTrialExtension} />)}
+              {filteredSubscriptions.map((subscription) => <SubscriptionCard key={subscription.organisation_id} subscription={subscription} onActivate={setSubscriptionToActivate} onCancel={openCancelDialog} onReinitiate={(item) => { setReinitiateError(""); setSubscriptionToReinitiate(item); }} onResume={(item) => { setResumeError(""); setSubscriptionToResume(item); }} onExtendTrial={openTrialExtension} />)}
             </Box>
             {filteredSubscriptions.length === 0 && <EmptyState />}
           </Box>
@@ -485,16 +578,16 @@ const Subscriptions = () => {
         {isFetching && <CircularProgress size={18} sx={{ color: PRIMARY_COLOR, position: "fixed", right: 28, bottom: 28 }} />}
       </Box>
       {subscriptionToActivate && <UpgradePaygDialog key={subscriptionToActivate.organisation_id} subscription={subscriptionToActivate} onClose={() => setSubscriptionToActivate(null)} />}
-      <Dialog open={Boolean(subscriptionToCancel)} onClose={isCancelling ? undefined : () => setSubscriptionToCancel(null)} maxWidth="xs" fullWidth>
+      <Dialog open={Boolean(subscriptionToCancel)} onClose={isCancelling ? undefined : closeCancelDialog} maxWidth="xs" fullWidth>
         <DialogTitle>Cancel {isTrialSubscription(subscriptionToCancel || {}) ? "trial" : "subscription"}?</DialogTitle>
         <DialogContent dividers>
           <Typography fontSize="14px" color="#4B5563">
             Cancel the {isTrialSubscription(subscriptionToCancel || {}) ? "trial" : "subscription"} for <strong>{subscriptionToCancel?.organisation_name || "this organisation"}</strong>? This will mark it as cancelled.
           </Typography>
-          {cancelError && <Alert severity="error" sx={{ mt: 2 }}>{cancelError}</Alert>}
+          {cancelError && <Alert severity="error" sx={{ mt: 2 }}>{typeof cancelError === "string" ? cancelError : getApiErrorMessage(cancelError, "Unable to cancel this subscription. Please try again.")}</Alert>}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setSubscriptionToCancel(null)} disabled={isCancelling}>
+          <Button onClick={closeCancelDialog} disabled={isCancelling}>
             Keep {isTrialSubscription(subscriptionToCancel || {}) ? "trial" : "subscription"}
           </Button>
           <Button color="error" variant="contained" onClick={confirmCancellation} disabled={isCancelling}>
@@ -508,7 +601,7 @@ const Subscriptions = () => {
           <Typography fontSize="14px" color="#4B5563">
             Reinitiate the trial for <strong>{subscriptionToReinitiate?.organisation_name || "this organisation"}</strong>? The subscription will be set back to active with a new trial period.
           </Typography>
-          {reinitiateError && <Alert severity="error" sx={{ mt: 2 }}>{reinitiateError}</Alert>}
+          {reinitiateError && <Alert severity="error" sx={{ mt: 2 }}>{typeof reinitiateError === "string" ? reinitiateError : getApiErrorMessage(reinitiateError, "Unable to reinitiate this trial. Please try again.")}</Alert>}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setSubscriptionToReinitiate(null)} disabled={isReinitiating}>Keep current status</Button>
@@ -523,7 +616,7 @@ const Subscriptions = () => {
           <Typography fontSize="14px" color="#4B5563">
             Resume the cancelled subscription for <strong>{subscriptionToResume?.organisation_name || "this organisation"}</strong>?
           </Typography>
-          {resumeError && <Alert severity="error" sx={{ mt: 2 }}>{resumeError}</Alert>}
+          {resumeError && <Alert severity="error" sx={{ mt: 2 }}>{typeof resumeError === "string" ? resumeError : getApiErrorMessage(resumeError, "Unable to resume this subscription. Please try again.")}</Alert>}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setSubscriptionToResume(null)} disabled={isResuming}>Keep cancelled</Button>
@@ -548,7 +641,7 @@ const Subscriptions = () => {
             onChange={(event) => setExtensionDays(event.target.value)}
             slotProps={{ htmlInput: { min: 1, step: 1 } }}
           />
-          {extensionError && <Alert severity="error" sx={{ mt: 2 }}>{extensionError}</Alert>}
+          {extensionError && <Alert severity="error" sx={{ mt: 2 }}>{typeof extensionError === "string" ? extensionError : getApiErrorMessage(extensionError, "Unable to extend this trial. Please try again.")}</Alert>}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setSubscriptionToExtendTrial(null)} disabled={isExtendingTrial}>Close</Button>
