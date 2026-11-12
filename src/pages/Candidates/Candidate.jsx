@@ -56,7 +56,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
 import { useDeleteCandidateMutation } from "../../redux/services/candidates/candidate";
-import CustomSelect from "../../components/Select";
+import CustomSelect from "../../components/Select/index.jsx";
 
 /* ─── Design tokens ─────────────────────────────────────────────────────────── */
 const C = {

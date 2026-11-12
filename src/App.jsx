@@ -5,13 +5,13 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Layouts
-import AmLayout from "./layout";
+import AmLayout from "./layout/index.jsx";
 import DrawerLayout from "./layout/Drawer";
 
 // Auth Pages
-import AmLogin from "./pages/Login";
-import AmSignup from "./pages/SignUp";
-import AmForgotPassword from "./pages/ForgotPassword";
+import AmLogin from "./pages/Login/index.jsx";
+import AmSignup from "./pages/SignUp/index.jsx";
+import AmForgotPassword from "./pages/ForgotPassword/index.jsx";
 
 // App Pages
 // import AmDashboard       from "./pages/Dashboard";
@@ -19,23 +19,23 @@ import AmForgotPassword from "./pages/ForgotPassword";
 // import OrgDetail         from "./pages/Organizations/OrgDetail";
 import RequisitionDetail from "./pages/OrgRequisitions/RequisitionDetail";
 import CandidateDetail from "./pages/OrgCandidates/CandidateDetail";
-import AmOrganizations from "./pages/Organizations";
+import AmOrganizations from "./pages/Organizations/index.jsx";
 import OrgDetail from "./pages/Organizations/orgDetails";
-import AmDashboard from "./pages/Dashboard";
+import AmDashboard from "./pages/Dashboard/index.jsx";
 // import AmDashboard from "./pages/1dashboard1/index";
 import AccountManagement from "./pages/AccountManagement/AccountManagement";
 import VerifySignupOTP from "./pages/SignUp/verifySignup";
 import CandidatesPage from "./pages/Candidates/Candidate";
 import CandidateDetailPage from "./pages/Candidates/CandidateDetailsPage";
-import Settings from "./pages/Settings";
+import Settings from "./pages/Settings/index.jsx";
 import ChangePasswordPage from "./pages/Settings/ChangePasswordPage";
-import CreateRequisition from "./pages/OrgRequisitions/createJob";
-import MatchedCandidates from "./pages/OrgRequisitions/createJob/matchedCandidates";
+import CreateRequisition from "./pages/OrgRequisitions/createJob/index.jsx";
+import MatchedCandidates from "./pages/OrgRequisitions/createJob/matchedCandidates/index.jsx";
 import ViewProfileDetails from "./pages/OrgRequisitions/createJob/ViewProfileDetails";
-import RequestsPage from "./pages/Requests";
-import ProvisionSignup from "./pages/ProvisionSignup";
+import RequestsPage from "./pages/Requests/index.jsx";
+import ProvisionSignup from "./pages/ProvisionSignup/index.jsx";
 import DemoRequestDetails from "./pages/DemoRequests/DemoRequestDetails";
-import Subscriptions from "./pages/Subscriptions";
+import Subscriptions from "./pages/subscriptions/index.jsx";
 const LegacyDemoRequestRedirect = () => {
   const { demoRequestId } = useParams();
   return <Navigate to={`/account-manager/requests/demo/${demoRequestId}`} replace />;

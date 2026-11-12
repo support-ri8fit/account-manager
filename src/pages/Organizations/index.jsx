@@ -19,7 +19,7 @@ import HourglassTopIcon from "@mui/icons-material/HourglassTop";
 import BlockIcon from "@mui/icons-material/Block";
 import { useNavigate } from "react-router-dom";
 import { useGetMyOrganisationsQuery } from "../../redux/services/requisition/requisition";
-import SearchFilter from "../../components/searchFilter";
+import SearchFilter from "../../components/searchFilter/index.jsx";
 import ViewToggle from "../../components/table/ViewToggle";
 import ReusableMRT from "../../components/table/index";
 

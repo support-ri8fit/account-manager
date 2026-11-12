@@ -47,9 +47,9 @@ import {
   useGetJobInterviewsQuery,
   useLazyGetResumeViewQuery,
 } from "../../redux/services/requisition/requisition";
-import ReusableMRT from "../../components/table";
+import ReusableMRT from "../../components/table/index.jsx";
 import ViewToggle from "../../components/table/ViewToggle";
-import SearchFilter from "../../components/searchFilter";
+import SearchFilter from "../../components/searchFilter/index.jsx";
 import {
   Dialog,
   DialogTitle,

@@ -5,7 +5,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useNavigate } from "react-router-dom";
 import { CheckCircleOutlineOutlined } from "@mui/icons-material";
-import { PRIMARY } from "../../../theme";
+import { PRIMARY } from "../../../theme/index.js";
 import { useGetMatchingCandidatesMutation } from "../../../redux/services/createRequesition/createRequesition";
 
 const SummaryPage = ({

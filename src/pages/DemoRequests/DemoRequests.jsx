@@ -29,7 +29,7 @@ import {
   formatDate,
   DEMO_REQUESTS_PATH,
 } from "./demoRequestUi";
-import ReusableMRT from "../../components/table";
+import ReusableMRT from "../../components/table/index.jsx";
 import AddDemoRequest from "./AddDemoRequest";
 
 /* =========================================

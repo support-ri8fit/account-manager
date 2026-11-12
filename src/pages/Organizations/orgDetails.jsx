@@ -77,7 +77,7 @@ import { useGetEmployeeDetailsQuery } from "../../redux/services/orgEmployees/or
 import ReusableMRT from "../../components/table/index";
 import ViewToggle from "../../components/table/ViewToggle";
 import SearchIcon from "@mui/icons-material/Search";
-import SearchFilter from "../../components/searchFilter";
+import SearchFilter from "../../components/searchFilter/index.jsx";
 import LayersIcon from "@mui/icons-material/Layers";
 
 // ─── Add this import at the top of your file ───────────────────────────────
@@ -95,7 +95,7 @@ import ControlPointIcon from "@mui/icons-material/ControlPoint";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import CandidatePipelineFunnel from "./CandidatePipeline";
 import { toast } from "react-toastify";
-import OrganizationOverview from "../1dashboard1";
+import OrganizationOverview from "../1dashboard1/index.jsx";
 import Billing from "./BIlling";
 
 const LABEL_SX = {

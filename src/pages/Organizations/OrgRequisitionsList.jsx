@@ -1,7 +1,7 @@
 import { Box, Grid } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGetOrganisationJobsQuery } from "../../redux/services/requisition/requisition";
-import { RequisitionCard } from "../OrgRequisitions";
+import { RequisitionCard } from "../OrgRequisitions/index.jsx";
 
 export default function OrgRequisitionsList() {
   const { orgId } = useParams(); //  FIX

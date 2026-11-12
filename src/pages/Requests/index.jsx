@@ -20,7 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import { BusinessOutlined, Check, Close, EventOutlined, GroupsOutlined, RefreshRounded } from "@mui/icons-material";
-import DemoRequests from "../DemoRequests";
+import DemoRequests from "../DemoRequests/index.jsx";
 import CandidateAssignmentDialog from "./CandidateAssignmentDialog";
 import { useGetUpgradeRequestsQuery, useReviewUpgradeRequestMutation } from "../../redux/services/subscriptions/subscriptions";
 import { useGetMyAssignedRequestsQuery } from "../../redux/services/drawerService/drawerService";

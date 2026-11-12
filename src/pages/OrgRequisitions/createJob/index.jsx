@@ -1,6 +1,6 @@
 import React, { memo, useState, useRef, useEffect } from "react";
 import { Autocomplete, Box, FormControl, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
-import { PRIMARY } from "../../../theme";
+import { PRIMARY } from "../../../theme/index.js";
 import {
   useGetSubFunctionsQuery,
   useGetCountriesQuery,
@@ -19,7 +19,7 @@ import {
   useEditJobMutation,
   useDeleteTemplateMutation
 } from "../../../redux/services/createRequesition/createRequesition";
-import GroupedSkillAutocomplete from "../../../components/autocomplete";
+import GroupedSkillAutocomplete from "../../../components/autocomplete/index.jsx";
 import { useLocation, useNavigate } from "react-router-dom";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";

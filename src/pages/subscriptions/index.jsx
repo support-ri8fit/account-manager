@@ -9,7 +9,7 @@ import {
   CalendarMonth, Cancel, CheckCircle, GridView, Groups, MoreVert, Replay,
   ViewList,
 } from "@mui/icons-material";
-import ReusableMRT from "../../components/table";
+import ReusableMRT from "../../components/table/index.jsx";
 import {
   useCancelOrganisationSubscriptionMutation,
   useExtendOrganisationTrialMutation,

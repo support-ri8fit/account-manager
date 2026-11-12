@@ -59,7 +59,7 @@ import { useCreateUserMutation } from "../../redux/services/userManagement/userM
 // ── ADD THIS IMPORT from your userManagement service ──
 import { useUpdateUserByAdminMutation } from "../../redux/services/userManagement/userManagement";
 
-import ReusableMRT from "../../components/table";
+import ReusableMRT from "../../components/table/index.jsx";
 
 /* ─────────────────────── Design tokens ─────────────────────── */
 const C = {

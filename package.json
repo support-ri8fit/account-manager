@@ -7,6 +7,7 @@
     "dev": "vite",
     "start": "vite",
     "build": "vite build",
+    "check:imports": "node check-imports.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:packs": "node scripts/generate-packs.cjs"

@@ -59,7 +59,7 @@ import ThumbDownOutlinedIcon from "@mui/icons-material/ThumbDownOutlined";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import { WorkOutlineOutlined } from "@mui/icons-material";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import { PRIMARY } from "../../theme";
+import { PRIMARY } from "../../theme/index.js";
 /* ══════════════════════════════════════════════════════════
    DESIGN TOKENS
 ══════════════════════════════════════════════════════════ */
